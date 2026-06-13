@@ -118,3 +118,5 @@ temp/
 *.tmp
 *.bak
 *.orig
+
+config/.env
