@@ -1,217 +1,75 @@
 
-# import json
-# import requests
-
-# class LocalOllamaClient:
-#     def __init__(self, model="qwen2.5:7b"):
-        
-#         self.api_url = "http://localhost:11434/api/generate"
-#         self.model = model
-
-#     def ask(self, prompt, system_prompt=None):
-#         """Standard text generation ke liye"""
-#         full_prompt = prompt
-#         if system_prompt:
-#             full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
-        
-#         payload = {
-#             "model": self.model,
-#             "prompt": full_prompt,
-#             "stream": False
-#         }
-        
-#         try:
-#             response = requests.post(self.api_url, json=payload)
-#             response.raise_for_status()
-#             return response.json().get("response", "")
-#         except requests.exceptions.ConnectionError:
-#             print("[Error] Ollama background mein run nahi ho raha. Terminal mein 'ollama serve' ya 'ollama run qwen2.5:7b' chalayein.")
-#             return "Local AI is offline."
-#         except Exception as e:
-#             print(f"[Ollama Error] {e}")
-#             return f"Error: {str(e)}"
-
-#     def ask_json(self, prompt, system_prompt=None):
-#         """Structured JSON data generation ke liye (Lore extraction, generators)"""
-#         full_prompt = prompt
-#         if system_prompt:
-#             full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
-            
-#         payload = {
-#             "model": self.model,
-#             "prompt": full_prompt,
-#             "stream": False,
-#             "format": "json"  # Ollama ka strict JSON mode
-#         }
-        
-#         try:
-#             response = requests.post(self.api_url, json=payload)
-#             response.raise_for_status()
-#             text_response = response.json().get("response", "").strip()
-            
-#             # Agar Qwen phir bhi markdown code blocks bhej de, toh unhein saaf karein
-#             if text_response.startswith("```json"):
-#                 text_response = text_response[7:]
-#             if text_response.endswith("```"):
-#                 text_response = text_response[:-3]
-                
-#             return json.loads(text_response.strip())
-            
-#         except json.JSONDecodeError:
-#             print("[Error] Model ne invalid JSON return kiya hai.")
-#             return {}
-#         except Exception as e:
-#             print(f"[Ollama JSON Error] {e}")
-#             return {}
-
-# # Singleton pattern taake project mein har jagah ek hi instance use ho
-# _client = None
-
-# def get_client():
-#     global _client
-#     if _client is None:
-#         _client = LocalOllamaClient(model="qwen2.5:7b")
-#     return _client
-
 import json
-import os
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()  # .env file load karega
-
-class BaseAIClient:
-    def ask(self, prompt, system_prompt=None):
-        raise NotImplementedError
-
-    def ask_json(self, prompt, system_prompt=None):
-        raise NotImplementedError
-
-
-class LocalOllamaClient(BaseAIClient):
+class LocalOllamaClient:
     def __init__(self, model="qwen2.5:7b"):
+        
         self.api_url = "http://localhost:11434/api/generate"
         self.model = model
 
     def ask(self, prompt, system_prompt=None):
+        """Standard text generation ke liye"""
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
-
-        payload = {"model": self.model, "prompt": full_prompt, "stream": False}
-
+        
+        payload = {
+            "model": self.model,
+            "prompt": full_prompt,
+            "stream": False
+        }
+        
         try:
             response = requests.post(self.api_url, json=payload)
             response.raise_for_status()
             return response.json().get("response", "")
         except requests.exceptions.ConnectionError:
-            return "Local AI is offline. 'ollama serve' chalayein."
+            print("[Error] Ollama background mein run nahi ho raha. Terminal mein 'ollama serve' ya 'ollama run qwen2.5:7b' chalayein.")
+            return "Local AI is offline."
         except Exception as e:
+            print(f"[Ollama Error] {e}")
             return f"Error: {str(e)}"
 
     def ask_json(self, prompt, system_prompt=None):
+        """Structured JSON data generation ke liye (Lore extraction, generators)"""
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
-
-        payload = {"model": self.model, "prompt": full_prompt, "stream": False, "format": "json"}
-
+            
+        payload = {
+            "model": self.model,
+            "prompt": full_prompt,
+            "stream": False,
+            "format": "json"  # Ollama ka strict JSON mode
+        }
+        
         try:
             response = requests.post(self.api_url, json=payload)
             response.raise_for_status()
             text_response = response.json().get("response", "").strip()
-
+            
+            # Agar Qwen phir bhi markdown code blocks bhej de, toh unhein saaf karein
             if text_response.startswith("```json"):
                 text_response = text_response[7:]
             if text_response.endswith("```"):
                 text_response = text_response[:-3]
-
+                
             return json.loads(text_response.strip())
+            
         except json.JSONDecodeError:
+            print("[Error] Model ne invalid JSON return kiya hai.")
             return {}
         except Exception as e:
             print(f"[Ollama JSON Error] {e}")
             return {}
 
+# Singleton pattern taake project mein har jagah ek hi instance use ho
+_client = None
 
-class ClaudeProvider(BaseAIClient):
-    BASE_URL = os.getenv("CLAUDE_PROXY_BASE_URL", "")
-    API_KEY = os.getenv("CLAUDE_PROXY_API_KEY", "")
-    MODEL = os.getenv("CLAUDE_PROXY_MODEL", "claude-sonnet-4-6")
+def get_client():
+    global _client
+    if _client is None:
+        _client = LocalOllamaClient(model="qwen2.5:7b")
+    return _client
 
-    def _call(self, prompt, system_prompt=None, json_mode=False):
-        if not self.BASE_URL or not self.API_KEY:
-            err = "[Claude Error] CLAUDE_PROXY_BASE_URL / CLAUDE_PROXY_API_KEY .env mein set nahi hain."
-            return {} if json_mode else err
-
-        headers = {
-            "Content-Type": "application/json",
-            "x-api-key": self.API_KEY,
-            "anthropic-version": "2023-06-01",
-        }
-
-        messages = [{"role": "user", "content": prompt}]
-        body = {
-            "model": self.MODEL,
-            "max_tokens": 1024,
-            "messages": messages,
-        }
-        if system_prompt:
-            body["system"] = system_prompt
-
-        # /v1/messages endpoint - agar BASE_URL root hai to path append karein
-        url = self.BASE_URL.rstrip("/")
-        if not url.endswith("/messages"):
-            url = url + "/v1/messages"
-
-        try:
-            resp = requests.post(url, headers=headers, json=body, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
-
-            text = "".join(
-                block.get("text", "") for block in data.get("content", []) if block.get("type") == "text"
-            )
-
-            if json_mode:
-                t = text.strip()
-                if t.startswith("```json"):
-                    t = t[7:]
-                if t.endswith("```"):
-                    t = t[:-3]
-                try:
-                    return json.loads(t.strip())
-                except json.JSONDecodeError:
-                    return {}
-
-            return text
-
-        except requests.exceptions.RequestException as e:
-            detail = ""
-            try:
-                detail = e.response.text[:300] if e.response is not None else ""
-            except Exception:
-                pass
-            err = f"[Claude Error] {str(e)} {detail}"
-            return {} if json_mode else err
-
-    def ask(self, prompt, system_prompt=None):
-        return self._call(prompt, system_prompt, json_mode=False)
-
-    def ask_json(self, prompt, system_prompt=None):
-        return self._call(prompt, system_prompt, json_mode=True)
-    
-# ----- Provider registry -----
-_clients = {}
-
-def get_client(provider="ollama"):
-    """
-    provider: "ollama" ya "claude"
-    """
-    global _clients
-    if provider not in _clients:
-        if provider == "claude":
-            _clients[provider] = ClaudeProvider()
-        else:
-            _clients[provider] = LocalOllamaClient(model="qwen2.5:7b")
-    return _clients[provider]
