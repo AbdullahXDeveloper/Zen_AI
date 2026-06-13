@@ -1,0 +1,228 @@
+erDiagram
+
+    UNIVERSES {
+        int id PK
+        string uuid
+        string name
+        text description
+        string canon_status
+        int importance_score
+        datetime created_at
+        datetime updated_at
+    }
+
+    UNIVERSES_CONNECTIONS {
+        int id PK
+        int source_universe_id FK
+        int target_universe_id FK
+        string connection_type
+        text description
+    }
+
+    ROOT_ENTITIES {
+        int id PK
+        string uuid
+        string name
+        string type
+        text description
+        text notes
+        int importance_score
+    }
+
+    ROOT_ENTITY_LINKS {
+        int id PK
+        int root_entity_id FK
+        string entity_type
+        int entity_id
+        text description
+    }
+
+    CHARACTERS {
+        int id PK
+        string uuid
+        int universe_id FK
+        string name
+        text titles
+        text aliases
+        string species
+        json traits_json
+        text personality
+        text motivations
+        text goals
+        text ideology
+        string canon_status
+        int importance_score
+        int version
+        int parent_character_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    FACTIONS {
+        int id PK
+        string uuid
+        int universe_id FK
+        string name
+        int founder_id FK
+        text ideology
+        text description
+        string canon_status
+        int importance_score
+    }
+
+    LOCATIONS {
+        int id PK
+        string uuid
+        int universe_id FK
+        string name
+        text description
+        string type
+        string canon_status
+        int importance_score
+    }
+
+    POWERS {
+        int id PK
+        string name
+        text description
+        text rules
+        string scope
+    }
+
+    CHARACTER_POWERS {
+        int character_id FK
+        int power_id FK
+        int proficiency
+    }
+
+    EVENTS {
+        int id PK
+        string uuid
+        int universe_id FK
+        string name
+        text description
+        string date_value
+        string date_label
+        string event_type
+        string canon_status
+        int importance_score
+    }
+
+    EVENT_PARTICIPANTS {
+        int id PK
+        int event_id FK
+        string entity_type
+        int entity_id
+        string role
+    }
+
+    RELATIONSHIPS {
+        int id PK
+        int character_a_id FK
+        int character_b_id FK
+        string edge_type
+        text description
+    }
+
+    ARTIFACTS {
+        int id PK
+        string uuid
+        int universe_id FK
+        string name
+        text description
+        int owner_id FK
+        json powers_json
+        int importance_score
+    }
+
+    STORIES {
+        int id PK
+        string uuid
+        string title
+        text summary
+        text raw_text
+        string story_mode
+        string canon_status
+        int universe_id FK
+        datetime created_at
+    }
+
+    SIMULATION_RUNS {
+        int id PK
+        string title
+        text premise
+        json affected_entities_json
+        json generated_outcomes_json
+        text reasoning_text
+        int universe_id FK
+        datetime created_at
+    }
+
+    LORE_DOCUMENTS {
+        int id PK
+        string filename
+        text raw_text
+        bool processed
+        datetime upload_date
+    }
+
+    VERSION_HISTORY {
+        int id PK
+        string entity_type
+        int entity_id
+        int version_number
+        json data_snapshot_json
+        datetime timestamp
+        string approved_by
+    }
+
+    TAGS {
+        int id PK
+        string name
+    }
+
+    ENTITY_TAGS {
+        int id PK
+        string entity_type
+        int entity_id
+        int tag_id FK
+    }
+
+    ENTITY_NOTES {
+        int id PK
+        string entity_type
+        int entity_id
+        text note_text
+        datetime created_at
+    }
+
+    %% ----------------------------------------------------
+    %% RELATIONSHIPS
+    %% ----------------------------------------------------
+
+    UNIVERSES ||--o{ CHARACTERS : "contains"
+    UNIVERSES ||--o{ FACTIONS : "contains"
+    UNIVERSES ||--o{ LOCATIONS : "contains"
+    UNIVERSES ||--o{ EVENTS : "contains"
+    UNIVERSES ||--o{ ARTIFACTS : "contains"
+    UNIVERSES ||--o{ STORIES : "set in"
+    UNIVERSES ||--o{ SIMULATION_RUNS : "set in"
+
+    UNIVERSES ||--o{ UNIVERSES_CONNECTIONS : "source"
+    UNIVERSES ||--o{ UNIVERSES_CONNECTIONS : "target"
+
+    ROOT_ENTITIES ||--o{ ROOT_ENTITY_LINKS : "links to"
+
+    CHARACTERS ||--o{ CHARACTERS : "variant of"
+    CHARACTERS ||--o{ CHARACTER_POWERS : "has"
+    POWERS ||--o{ CHARACTER_POWERS : "granted to"
+
+    CHARACTERS ||--o{ FACTIONS : "founder of"
+    CHARACTERS ||--o{ ARTIFACTS : "owns"
+
+    EVENTS ||--o{ EVENT_PARTICIPANTS : "has"
+
+    CHARACTERS ||--o{ RELATIONSHIPS : "character_a"
+    CHARACTERS ||--o{ RELATIONSHIPS : "character_b"
+
+    TAGS ||--o{ ENTITY_TAGS : "applied via"
