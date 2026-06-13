@@ -89,6 +89,7 @@ htmlcov/
 test_check.py
 test_search.py
 test_module_5.py
+test ingestion.py
 
 # ── Jupyter ──
 .ipynb_checkpoints/
