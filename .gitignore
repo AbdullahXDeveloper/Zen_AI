@@ -58,8 +58,10 @@ data/uploads/
 data/exports/
 
 # ── Logs ──
-*.Logs
+# ── Logs ──
+*.log
 logs/
+Logs/
 
 # ── OS Files ──
 .DS_Store
