@@ -1,0 +1,116 @@
+# ─────────────────────────────────────────────
+# ZenAI — .gitignore
+# ─────────────────────────────────────────────
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# ── Virtual Environment ──
+.venv/
+venv/
+ENV/
+env/
+.env/
+
+# ── Environment Variables (NEVER commit API keys) ──
+config/.env
+.env
+*.env
+!.env.example
+
+# ── Database (local only — do not push) ──
+data/zenai.db
+data/zenai.db-shm
+data/zenai.db-wal
+*.db
+*.sqlite
+*.sqlite3
+
+# ── FAISS Index & Embeddings Cache ──
+data/cache/
+*.faiss
+*.index
+
+# ── Generated Wiki Pages ──
+data/lore/
+
+# ── User Uploads ──
+data/uploads/
+
+# ── Exports ──
+data/exports/
+
+# ── Logs ──
+*.log
+logs/
+
+# ── OS Files ──
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# ── Testing ──
+.pytest_cache/
+.coverage
+htmlcov/
+test_check.py
+
+# ── Jupyter ──
+.ipynb_checkpoints/
+*.ipynb
+
+# ── PyVis HTML output (generated, not source) ──
+*.html
+!app/ui/**/*.html
+
+# ── Plotly / Chart exports ──
+*.png
+*.jpg
+*.jpeg
+*.svg
+!docs/**/*.png
+!docs/**/*.svg
+
+# ── Sentence Transformers model cache ──
+# (downloaded automatically, no need to commit)
+sentence_transformers/
+models/
+.cache/
+
+# ── Temporary files ──
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
