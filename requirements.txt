@@ -1,0 +1,12 @@
+PySide6
+SQLAlchemy
+networkx
+pyvis
+plotly
+anthropic
+sentence-transformers
+faiss-cpu
+python-docx
+PyMuPDF
+python-dotenv
+pandas

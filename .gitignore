@@ -58,7 +58,7 @@ data/uploads/
 data/exports/
 
 # ── Logs ──
-*.log
+*.Logs
 logs/
 
 # ── OS Files ──
