@@ -93,6 +93,7 @@ test ingestion.py
 test_wiki.py
 test_timeline.py
 test graph.py
+test_ai.py
 
 
 # ── Jupyter ──

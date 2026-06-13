@@ -1,42 +1,77 @@
-# """ZenAI application entry point."""
 
-# from app.database.crud import get_stats
-# from app.database.db_init import init_db, get_session
-# from config.settings import APP_NAME, DB_PATH
+# import sys
+# from PySide6.QtWidgets import QApplication
+# from app.database.db_init import init_db
+# from app.ui.main_window import ZenMainWindow
 
+# def main():
+#     print("[Zen AI] Booting up Operating System...")
+    
+#     # 1. Start Database
+#     init_db()
 
-# def main() -> None:
-#     """Initialize the database and print a short status summary."""
-#     print(f"[{APP_NAME}] Starting application...")
-#     init_db(seed_root_entities=True)
-
-#     session = get_session()
-#     try:
-#         stats = get_stats(session)
-#         print(f"[{APP_NAME}] Database path: {DB_PATH}")
-#         print(f"[{APP_NAME}] Current records: {stats}")
-#     finally:
-#         session.close()
-
+#     # 2. Start UI Application
+#     app = QApplication(sys.argv)
+#     app.setStyle("Fusion") # Better look for cross-platform
+    
+#     # 3. Load Main Window
+#     window = ZenMainWindow()
+#     window.show()
+    
+#     print("[Zen AI] System Ready.")
+#     sys.exit(app.exec())
 
 # if __name__ == "__main__":
 #     main()
+# import sys
+# from PySide6.QtWidgets import QApplication
+# from PySide6.QtGui import QFont
+# from PySide6.QtCore import Qt
+# from app.database.db_init import init_db
+# from app.ui.main_window import ZenMainWindow
+
+# def main():
+#     print("[Zen AI] Booting up Operating System...")
+#     init_db()
+
+#     # Fix for Blurry Text (High-DPI Scaling)
+#     if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+#         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+#     if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+#         QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
+#     app = QApplication(sys.argv)
+#     app.setStyle("Fusion")
+    
+#     # Set a Crisp Modern Font Globally
+#     app.setFont(QFont("Segoe UI", 11))
+
+#     window = ZenMainWindow()
+#     window.show()
+    
+#     print("[Zen AI] System Ready.")
+#     sys.exit(app.exec())
+
+# if __name__ == "__main__":
+#     main()
+
 import sys
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QFont
 from app.database.db_init import init_db
 from app.ui.main_window import ZenMainWindow
 
 def main():
     print("[Zen AI] Booting up Operating System...")
-    
-    # 1. Start Database
     init_db()
 
-    # 2. Start UI Application
+    # PySide6 mein High-DPI automatically handle ho jata hai
     app = QApplication(sys.argv)
-    app.setStyle("Fusion") # Better look for cross-platform
+    app.setStyle("Fusion")
     
-    # 3. Load Main Window
+    # Set a Crisp Modern Font Globally
+    app.setFont(QFont("Segoe UI", 11))
+
     window = ZenMainWindow()
     window.show()
     

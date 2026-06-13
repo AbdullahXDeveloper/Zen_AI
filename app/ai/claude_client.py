@@ -1,131 +1,217 @@
-"""
-app/ai/claude_client.py
 
-Thin wrapper around the Anthropic API:
-- Handles client init, retries on transient errors
-- Provides plain-text and structured-JSON completion helpers
-- All other ai/ modules should call through this, never call anthropic directly
-"""
+# import json
+# import requests
+
+# class LocalOllamaClient:
+#     def __init__(self, model="qwen2.5:7b"):
+        
+#         self.api_url = "http://localhost:11434/api/generate"
+#         self.model = model
+
+#     def ask(self, prompt, system_prompt=None):
+#         """Standard text generation ke liye"""
+#         full_prompt = prompt
+#         if system_prompt:
+#             full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
+        
+#         payload = {
+#             "model": self.model,
+#             "prompt": full_prompt,
+#             "stream": False
+#         }
+        
+#         try:
+#             response = requests.post(self.api_url, json=payload)
+#             response.raise_for_status()
+#             return response.json().get("response", "")
+#         except requests.exceptions.ConnectionError:
+#             print("[Error] Ollama background mein run nahi ho raha. Terminal mein 'ollama serve' ya 'ollama run qwen2.5:7b' chalayein.")
+#             return "Local AI is offline."
+#         except Exception as e:
+#             print(f"[Ollama Error] {e}")
+#             return f"Error: {str(e)}"
+
+#     def ask_json(self, prompt, system_prompt=None):
+#         """Structured JSON data generation ke liye (Lore extraction, generators)"""
+#         full_prompt = prompt
+#         if system_prompt:
+#             full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
+            
+#         payload = {
+#             "model": self.model,
+#             "prompt": full_prompt,
+#             "stream": False,
+#             "format": "json"  # Ollama ka strict JSON mode
+#         }
+        
+#         try:
+#             response = requests.post(self.api_url, json=payload)
+#             response.raise_for_status()
+#             text_response = response.json().get("response", "").strip()
+            
+#             # Agar Qwen phir bhi markdown code blocks bhej de, toh unhein saaf karein
+#             if text_response.startswith("```json"):
+#                 text_response = text_response[7:]
+#             if text_response.endswith("```"):
+#                 text_response = text_response[:-3]
+                
+#             return json.loads(text_response.strip())
+            
+#         except json.JSONDecodeError:
+#             print("[Error] Model ne invalid JSON return kiya hai.")
+#             return {}
+#         except Exception as e:
+#             print(f"[Ollama JSON Error] {e}")
+#             return {}
+
+# # Singleton pattern taake project mein har jagah ek hi instance use ho
+# _client = None
+
+# def get_client():
+#     global _client
+#     if _client is None:
+#         _client = LocalOllamaClient(model="qwen2.5:7b")
+#     return _client
+
 import json
-import time
-from typing import Optional
+import os
+import requests
+from dotenv import load_dotenv
 
-import anthropic
+load_dotenv()  # .env file load karega
 
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_MAX_TOKENS, validate_api_key
+class BaseAIClient:
+    def ask(self, prompt, system_prompt=None):
+        raise NotImplementedError
+
+    def ask_json(self, prompt, system_prompt=None):
+        raise NotImplementedError
 
 
-class ClaudeClientError(Exception):
-    pass
+class LocalOllamaClient(BaseAIClient):
+    def __init__(self, model="qwen2.5:7b"):
+        self.api_url = "http://localhost:11434/api/generate"
+        self.model = model
 
+    def ask(self, prompt, system_prompt=None):
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
 
-class ClaudeClient:
-    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None,
-                 max_tokens: Optional[int] = None, max_retries: int = 3):
-        key = api_key or ANTHROPIC_API_KEY
-        if not key or "PASTE_YOUR" in key:
-            raise ClaudeClientError(
-                "ANTHROPIC_API_KEY not set. Edit config/.env and add your real key."
-            )
-        self.client = anthropic.Anthropic(api_key=key)
-        self.model = model or CLAUDE_MODEL
-        self.max_tokens = max_tokens or CLAUDE_MAX_TOKENS
-        self.max_retries = max_retries
-
-    # ------------------------------------------------------------------
-    # Core call with retry/backoff
-    # ------------------------------------------------------------------
-    def _call(self, messages: list[dict], system: Optional[str] = None,
-              max_tokens: Optional[int] = None, temperature: float = 1.0) -> str:
-        last_err = None
-        for attempt in range(self.max_retries):
-            try:
-                kwargs = dict(
-                    model=self.model,
-                    max_tokens=max_tokens or self.max_tokens,
-                    temperature=temperature,
-                    messages=messages,
-                )
-                if system:
-                    kwargs["system"] = system
-
-                response = self.client.messages.create(**kwargs)
-
-                # Concatenate all text blocks
-                text_parts = [
-                    block.text for block in response.content
-                    if getattr(block, "type", None) == "text"
-                ]
-                return "\n".join(text_parts)
-
-            except (anthropic.APIConnectionError, anthropic.RateLimitError,
-                    anthropic.InternalServerError) as e:
-                last_err = e
-                wait = 2 ** attempt
-                time.sleep(wait)
-                continue
-            except anthropic.APIStatusError as e:
-                # Non-retryable (bad request, auth, etc.)
-                raise ClaudeClientError(f"Claude API error ({e.status_code}): {e.message}")
-
-        raise ClaudeClientError(f"Claude API failed after {self.max_retries} retries: {last_err}")
-
-    # ------------------------------------------------------------------
-    # Public helpers
-    # ------------------------------------------------------------------
-    def ask(self, prompt: str, system: Optional[str] = None,
-            max_tokens: Optional[int] = None, temperature: float = 1.0) -> str:
-        """Plain text completion. Returns raw string response."""
-        messages = [{"role": "user", "content": prompt}]
-        return self._call(messages, system=system, max_tokens=max_tokens, temperature=temperature)
-
-    def ask_json(self, prompt: str, system: Optional[str] = None,
-                  max_tokens: Optional[int] = None, temperature: float = 0.7) -> dict | list:
-        """
-        Completion that expects a JSON response.
-        Appends an instruction to return JSON only, strips markdown fences,
-        and parses the result. Raises ClaudeClientError on parse failure.
-        """
-        json_instruction = (
-            "\n\nIMPORTANT: Respond with ONLY valid JSON. "
-            "No preamble, no explanation, no markdown code fences."
-        )
-        full_prompt = prompt + json_instruction
-
-        raw = self.ask(full_prompt, system=system, max_tokens=max_tokens, temperature=temperature)
-        cleaned = self._strip_json_fences(raw)
+        payload = {"model": self.model, "prompt": full_prompt, "stream": False}
 
         try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            raise ClaudeClientError(
-                f"Failed to parse JSON from Claude response: {e}\nRaw response:\n{raw}"
+            response = requests.post(self.api_url, json=payload)
+            response.raise_for_status()
+            return response.json().get("response", "")
+        except requests.exceptions.ConnectionError:
+            return "Local AI is offline. 'ollama serve' chalayein."
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+    def ask_json(self, prompt, system_prompt=None):
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"System: {system_prompt}\n\nUser: {prompt}"
+
+        payload = {"model": self.model, "prompt": full_prompt, "stream": False, "format": "json"}
+
+        try:
+            response = requests.post(self.api_url, json=payload)
+            response.raise_for_status()
+            text_response = response.json().get("response", "").strip()
+
+            if text_response.startswith("```json"):
+                text_response = text_response[7:]
+            if text_response.endswith("```"):
+                text_response = text_response[:-3]
+
+            return json.loads(text_response.strip())
+        except json.JSONDecodeError:
+            return {}
+        except Exception as e:
+            print(f"[Ollama JSON Error] {e}")
+            return {}
+
+
+class ClaudeProvider(BaseAIClient):
+    BASE_URL = os.getenv("CLAUDE_PROXY_BASE_URL", "")
+    API_KEY = os.getenv("CLAUDE_PROXY_API_KEY", "")
+    MODEL = os.getenv("CLAUDE_PROXY_MODEL", "claude-sonnet-4-6")
+
+    def _call(self, prompt, system_prompt=None, json_mode=False):
+        if not self.BASE_URL or not self.API_KEY:
+            err = "[Claude Error] CLAUDE_PROXY_BASE_URL / CLAUDE_PROXY_API_KEY .env mein set nahi hain."
+            return {} if json_mode else err
+
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": self.API_KEY,
+            "anthropic-version": "2023-06-01",
+        }
+
+        messages = [{"role": "user", "content": prompt}]
+        body = {
+            "model": self.MODEL,
+            "max_tokens": 1024,
+            "messages": messages,
+        }
+        if system_prompt:
+            body["system"] = system_prompt
+
+        # /v1/messages endpoint - agar BASE_URL root hai to path append karein
+        url = self.BASE_URL.rstrip("/")
+        if not url.endswith("/messages"):
+            url = url + "/v1/messages"
+
+        try:
+            resp = requests.post(url, headers=headers, json=body, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+
+            text = "".join(
+                block.get("text", "") for block in data.get("content", []) if block.get("type") == "text"
             )
 
-    @staticmethod
-    def _strip_json_fences(text: str) -> str:
-        text = text.strip()
-        if text.startswith("```"):
-            # Remove first line (```json or ```) and trailing ```
-            lines = text.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip().startswith("```"):
-                lines = lines[:-1]
-            text = "\n".join(lines).strip()
-        return text
+            if json_mode:
+                t = text.strip()
+                if t.startswith("```json"):
+                    t = t[7:]
+                if t.endswith("```"):
+                    t = t[:-3]
+                try:
+                    return json.loads(t.strip())
+                except json.JSONDecodeError:
+                    return {}
 
+            return text
 
-# Module-level singleton, lazily initialized
-_client: Optional[ClaudeClient] = None
+        except requests.exceptions.RequestException as e:
+            detail = ""
+            try:
+                detail = e.response.text[:300] if e.response is not None else ""
+            except Exception:
+                pass
+            err = f"[Claude Error] {str(e)} {detail}"
+            return {} if json_mode else err
 
+    def ask(self, prompt, system_prompt=None):
+        return self._call(prompt, system_prompt, json_mode=False)
 
-def get_client() -> ClaudeClient:
-    global _client
-    if _client is None:
-        _client = ClaudeClient()
-    return _client
+    def ask_json(self, prompt, system_prompt=None):
+        return self._call(prompt, system_prompt, json_mode=True)
+    
+# ----- Provider registry -----
+_clients = {}
 
-
-def is_configured() -> bool:
-    return validate_api_key()
+def get_client(provider="ollama"):
+    """
+    provider: "ollama" ya "claude"
+    """
+    global _clients
+    if provider not in _clients:
+        if provider == "claude":
+            _clients[provider] = ClaudeProvider()
+        else:
+            _clients[provider] = LocalOllamaClient(model="qwen2.5:7b")
+    return _clients[provider]

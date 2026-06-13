@@ -10,3 +10,5 @@ python-docx
 PyMuPDF
 python-dotenv
 pandas
+requests
+python-dotenv
