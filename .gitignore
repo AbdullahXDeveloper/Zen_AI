@@ -90,7 +90,8 @@ test_check.py
 test_search.py
 test_module_5.py
 test ingestion.py
-test module graph.py
+test_timeline.py
+test graph.py
 # ── Jupyter ──
 .ipynb_checkpoints/
 *.ipynb

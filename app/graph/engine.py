@@ -50,7 +50,12 @@ def build_universe_graph(session, universe_id):
         if a.owner_id and G.has_node(f"chr_{a.owner_id}"):
             G.add_edge(f"chr_{a.owner_id}", f"art_{a.id}", label="owns", title="Owner")
 
-    # 4. Add Events
+    # 4. Add Locations (Yeh block Events se UPAR aana chahiye)
+    locations = session.query(Location).filter_by(universe_id=universe_id).all()
+    for loc in locations:
+        G.add_node(f"loc_{loc.id}", label=loc.name, group="location", title=loc.type)
+
+    # 5. Add Events (Ab jab Event add hoga, toh Locations graph mein majood hongi)
     events = session.query(Event).filter_by(universe_id=universe_id).all()
     for e in events:
         G.add_node(f"evt_{e.id}", label=e.name, group="event", title=e.date_label)
@@ -63,13 +68,7 @@ def build_universe_graph(session, universe_id):
             if G.has_node(node_id):
                 G.add_edge(node_id, f"evt_{e.id}", label="participated_in", title=p.role)
 
-    # 5. Add Locations
-    locations = session.query(Location).filter_by(universe_id=universe_id).all()
-    for loc in locations:
-        G.add_node(f"loc_{loc.id}", label=loc.name, group="location", title=loc.type)
-
     return G
-
 def build_character_graph(session, character_id):
     """Generates a graph centered on a specific character and their direct connections."""
     G = nx.Graph()
