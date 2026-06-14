@@ -125,30 +125,70 @@ def build_root_entity_context(session, root_entity_id: int) -> str:
 # ----------------------------------------------------------------------
 # Search-driven context (for free-form queries / story prompts)
 # ----------------------------------------------------------------------
+# def build_search_context(session, query: str, entity_type: Optional[str] = None,
+#                           top_k: int = 5) -> str:
+#     """
+#     Run semantic search against the lore DB and format the top results
+#     as context. Useful when the user gives a free-form prompt and we
+#     need to find what's relevant before generating.
+#     """
+#     results = semantic_search(session, query, entity_type=entity_type)
+#     results = results[:top_k]
+#     if not results:
+#         return ""
+
+#     lines = []
+#     for r in results:
+#         # search() result shape per Module 6: dict-like with entity_type, id, name, description, score
+#         etype = r.get("entity_type", "?") if isinstance(r, dict) else getattr(r, "entity_type", "?")
+#         name = r.get("name", "?") if isinstance(r, dict) else getattr(r, "name", "?")
+#         uuid = r.get("uuid", "") if isinstance(r, dict) else getattr(r, "uuid", "")
+#         desc = r.get("description", "") if isinstance(r, dict) else getattr(r, "description", "")
+#         desc_short = (desc[:150] + "...") if desc and len(desc) > 150 else (desc or "")
+#         lines.append(f"- [{etype}] {name} ({uuid})\n  {desc_short}")
+
+#     return _fmt_block(f"Relevant Lore (search: \"{query}\")", lines)
 def build_search_context(session, query: str, entity_type: Optional[str] = None,
                           top_k: int = 5) -> str:
-    """
-    Run semantic search against the lore DB and format the top results
-    as context. Useful when the user gives a free-form prompt and we
-    need to find what's relevant before generating.
-    """
     results = semantic_search(session, query, entity_type=entity_type)
     results = results[:top_k]
     if not results:
         return ""
 
+    from app.database import crud
+
+    GETTERS = {
+        "character": crud.get_character,
+        "faction": crud.get_faction,
+        "location": crud.get_location,
+        "event": crud.get_event,
+        "artifact": crud.get_artifact,
+        "story": crud.get_story,
+    }
+
     lines = []
+    seen = set()
     for r in results:
-        # search() result shape per Module 6: dict-like with entity_type, id, name, description, score
-        etype = r.get("entity_type", "?") if isinstance(r, dict) else getattr(r, "entity_type", "?")
-        name = r.get("name", "?") if isinstance(r, dict) else getattr(r, "name", "?")
-        uuid = r.get("uuid", "") if isinstance(r, dict) else getattr(r, "uuid", "")
-        desc = r.get("description", "") if isinstance(r, dict) else getattr(r, "description", "")
-        desc_short = (desc[:150] + "...") if desc and len(desc) > 150 else (desc or "")
-        lines.append(f"- [{etype}] {name} ({uuid})\n  {desc_short}")
+        etype = r.get("entity_type")
+        eid = r.get("entity_id")
+        key = (etype, eid)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        getter = GETTERS.get(etype)
+        if not getter:
+            continue
+        obj = getter(session, eid)
+        if not obj:
+            continue
+
+        lines.append(_fmt_entity(obj, etype))
+
+    if not lines:
+        return ""
 
     return _fmt_block(f"Relevant Lore (search: \"{query}\")", lines)
-
 
 # ----------------------------------------------------------------------
 # Combined builder
