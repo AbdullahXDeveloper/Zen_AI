@@ -140,6 +140,8 @@ from PySide6.QtGui import QTextCursor
 from app.ai.claude_client import get_client
 from app.ai.context_builder import build_search_context
 from app.database.db_init import get_session
+from app.search import faiss_store
+from app.search.indexer import load_or_rebuild
 
 
 class AIWorker(QThread):
@@ -155,6 +157,10 @@ class AIWorker(QThread):
             # --- RAG: pull relevant lore context before asking the AI ---
             session = get_session()
             try:
+                # Failsafe: if the index was never loaded/built (e.g. app
+                # started without it), make sure it exists before searching.
+                if faiss_store.index_size() == 0:
+                    load_or_rebuild(session)
                 lore_context = build_search_context(session, self.prompt, top_k=5)
             finally:
                 session.close()

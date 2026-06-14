@@ -58,12 +58,24 @@
 import sys
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont
-from app.database.db_init import init_db
+from app.database.db_init import init_db, get_session
+from app.search.indexer import load_or_rebuild
 from app.ui.main_window import ZenMainWindow
 
 def main():
     print("[Zen AI] Booting up Operating System...")
     init_db()
+
+    # Load (or build) the FAISS vector index so RAG / semantic search works.
+    # Without this the index stays empty and the AI answers from general
+    # knowledge instead of the Zendrix lore.
+    session = get_session()
+    try:
+        load_or_rebuild(session)
+    except Exception as e:
+        print(f"[Zen AI] Warning: could not load search index: {e}")
+    finally:
+        session.close()
 
     # PySide6 mein High-DPI automatically handle ho jata hai
     app = QApplication(sys.argv)
