@@ -57,5 +57,7 @@ def seed_data():
 
     print("✅ Dummy data successfully add ho gaya hai!")
 
+# Comment ---
+
 if __name__ == "__main__":
     seed_data()
