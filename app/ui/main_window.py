@@ -21,6 +21,9 @@ from app.ui.locations_view import LocationsViewWidget    # ← Phase 9E: Locatio
 from app.ui.artifacts_view import ArtifactsViewWidget    # ← Phase 9F: Artifacts
 from app.ui.events_view import EventsViewWidget          # ← Phase 9G: Events
 from app.ui.stories_view import StoriesViewWidget        # ← Phase 9H: Stories
+from app.ui.search_view import SearchViewWidget          # ← Search
+from app.ui.lore_upload_view import LoreUploadViewWidget # ← Lore Upload
+from app.ui.analytics_view import AnalyticsViewWidget    # ← Analytics
 
 
 class ZenMainWindow(QMainWindow):
@@ -81,8 +84,9 @@ class ZenMainWindow(QMainWindow):
             ("Wiki",              "📚", WikiViewWidget),
             ("AI Assistant",      "✦", AIChatWidget),
             ("─────────────", "",  None),          # divider
-            ("Search",            "🔍", None),
-            ("Lore Upload",       "⬆", None),
+            ("Search",            "🔍", SearchViewWidget),
+            ("Lore Upload",       "⬆", LoreUploadViewWidget),
+            ("Analytics",        "📊", AnalyticsViewWidget),
             ("Settings",          "⚙", None),
         ]
 
@@ -130,7 +134,7 @@ class ZenMainWindow(QMainWindow):
         sidebar_layout.addStretch()
 
         # Version tag at bottom
-        ver_lbl = QLabel("v0.9h")
+        ver_lbl = QLabel("v1.0")
         ver_lbl.setStyleSheet("color: #222; font-size: 10px; border: none;")
         ver_lbl.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(ver_lbl)

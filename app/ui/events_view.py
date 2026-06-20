@@ -198,7 +198,7 @@ class EventCard(QFrame):
         edit_btn.clicked.connect(lambda: self.edit_clicked.emit(self.data))
         del_btn = QPushButton("✕  Delete")
         del_btn.setFixedSize(80, 26)
-        del_btn.setStyleSheet(self._btn("#555"))
+        del_btn.setStyleSheet(self._btn("#555555"))
         del_btn.clicked.connect(lambda: self.delete_clicked.emit(self.data))
         foot.addWidget(score_lbl)
         foot.addStretch()
