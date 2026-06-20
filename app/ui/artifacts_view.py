@@ -483,10 +483,12 @@ class ArtifactsViewWidget(QWidget):
 
         root.addWidget(main_area)
 
-        self._form_panel = ArtifactFormPanel(self)
+        self._form_panel = ArtifactFormPanel()
+        self._form_panel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self._form_panel.saved.connect(self._load_artifacts)
         self._form_panel.hide()
-        root.addWidget(self._form_panel)
+        root.addWidget(self._form_panel, 0)
+
 
     def _load_universes(self):
         self._uni_worker = LoadUniversesForArtWorker()

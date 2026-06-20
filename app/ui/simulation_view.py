@@ -9,7 +9,7 @@ Right panel: Results with per-entity impact cards + global outcome
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QPushButton, QLineEdit, QComboBox,
-    QTextEdit, QSizePolicy, QSplitter
+    QTextEdit, QSizePolicy, QSplitter, QTabWidget
 )
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QColor
@@ -121,8 +121,34 @@ class SaveSimWorker(QThread):
         except Exception as e:
             self.error.emit(str(e))
 
+# ─── History Loader ─────────────────────────────────────
+class LoadHistoryWorker(QThread):
+    done  = Signal(list)
+    error = Signal(str)
 
-# ─── Entity Impact Card ───────────────────────────────────
+    def run(self):
+        try:
+            from app.database.models import SimulationRun
+            s = get_session()
+            runs = s.query(SimulationRun).order_by(SimulationRun.id.desc()).limit(50).all()
+            result = [
+                {
+                    "id":       r.id,
+                    "title":    r.title or "Untitled Run",
+                    "premise":  r.premise or "",
+                    "created":  str(r.created_at)[:16] if hasattr(r, "created_at") and r.created_at else "—",
+                    "outcomes": r.generated_outcomes_json or [],
+                    "reasoning": r.reasoning_text or "",
+                    "global_outcome": "",
+                }
+                for r in runs
+            ]
+            s.close()
+            self.done.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class ImpactCard(QFrame):
     def __init__(self, outcome: dict):
         super().__init__()
@@ -183,12 +209,14 @@ class SimulationViewWidget(QWidget):
         self._ctx_worker  = None
         self._sim_worker  = None
         self._save_worker = None
-        self._all_entities = []   # [{id, name, type, universe_id}, ...]
+        self._hist_worker = None
+        self._all_entities = []
         self._universes   = []
-        self._selected    = []    # [{entity_type, entity_id, entity_name}, ...]
+        self._selected    = []
         self._last_result = None
         self._setup_ui()
         self._load_context()
+        self._load_history()
 
     # ── UI Setup ──────────────────────────────────────────
 
@@ -207,16 +235,56 @@ class SimulationViewWidget(QWidget):
 
         title = QLabel("🌐  World Simulation")
         title.setStyleSheet(f"color: {ACCENT}; font-size: 20px; font-weight: 900; letter-spacing: 2px; background: transparent; border: none;")
-        self._top_status = QLabel("Ollama-powered what-if scenario engine for the Zendrix multiverse")
+        self._top_status = QLabel("AI-powered what-if scenario engine for the Zendrix multiverse")
         self._top_status.setStyleSheet("color: #2A2A2A; font-size: 11px; background: transparent; border: none;")
         b.addWidget(title)
         b.addStretch()
         b.addWidget(self._top_status)
         root.addWidget(top_bar)
 
-        # ── Splitter ──
+        # ── Tabs ──
+        tabs = QTabWidget()
+        tabs.setStyleSheet(f"""
+            QTabWidget::pane {{ border: none; background: #0D0D0D; }}
+            QTabBar::tab {{
+                background: #0A0A0A; color: #2A2A2A;
+                padding: 10px 28px; font-size: 12px; font-weight: 600;
+                border: none; border-bottom: 2px solid transparent;
+            }}
+            QTabBar::tab:selected {{
+                color: {ACCENT}; border-bottom: 2px solid {ACCENT};
+                background: #0D0D0D;
+            }}
+            QTabBar::tab:hover {{ color: #555; }}
+        """)
+        root.addWidget(tabs)
+
+        # ──── TAB 1: New Simulation ────
+        sim_tab = QWidget()
+        sim_tab.setStyleSheet("background: #0D0D0D;")
+        sim_lay = QVBoxLayout(sim_tab)
+        sim_lay.setContentsMargins(0, 0, 0, 0)
+        sim_lay.setSpacing(0)
+        self._build_sim_tab(sim_lay)
+        tabs.addTab(sim_tab, "⚡  New Simulation")
+
+        # ──── TAB 2: History ────
+        hist_tab = QWidget()
+        hist_tab.setStyleSheet("background: #0D0D0D;")
+        hist_lay = QVBoxLayout(hist_tab)
+        hist_lay.setContentsMargins(0, 0, 0, 0)
+        self._build_history_tab(hist_lay)
+        tabs.addTab(hist_tab, "📋  History")
+
+        tabs.currentChanged.connect(lambda i: self._load_history() if i == 1 else None)
+
+    # ── Build Simulation Tab ──────────────────────────────
+
+    def _build_sim_tab(self, root):
+        """Original simulation UI placed inside Tab 1."""
         splitter = QSplitter(Qt.Horizontal)
         splitter.setStyleSheet("QSplitter::handle { background: #1A1A1A; width: 1px; }")
+
 
         # ────── LEFT: Config ──────
         left = QFrame()
@@ -404,6 +472,56 @@ class SimulationViewWidget(QWidget):
         splitter.addWidget(right)
         splitter.setSizes([400, 880])
         root.addWidget(splitter)
+
+    # ── Build History Tab ─────────────────────────────────
+
+    def _build_history_tab(self, root):
+        # Reload button row
+        hdr = QFrame()
+        hdr.setFixedHeight(52)
+        hdr.setStyleSheet("background: #0D0D0D; border-bottom: 1px solid #141414;")
+        hr = QHBoxLayout(hdr)
+        hr.setContentsMargins(28, 0, 28, 0)
+        title_lbl = QLabel("Past Simulation Runs")
+        title_lbl.setStyleSheet("color: #222; font-size: 13px; font-weight: 700; background: transparent; border: none;")
+        reload_btn = QPushButton("↻  Reload")
+        reload_btn.setFixedHeight(28)
+        reload_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: #333; border: 1px solid #1A1A1A; border-radius: 5px; font-size: 11px; padding: 0 12px; }}"
+            f"QPushButton:hover {{ color: {ACCENT}; border-color: {ACCENT}44; }}"
+        )
+        reload_btn.clicked.connect(self._load_history)
+        hr.addWidget(title_lbl)
+        hr.addStretch()
+        hr.addWidget(reload_btn)
+        root.addWidget(hdr)
+
+        # Scroll area for history cards
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(
+            "QScrollArea { border: none; background: #0D0D0D; } "
+            "QScrollBar:vertical { background: #111; width: 6px; } "
+            "QScrollBar::handle:vertical { background: #2A2A2A; border-radius: 3px; }"
+        )
+        self._hist_content = QWidget()
+        self._hist_content.setStyleSheet("background: #0D0D0D;")
+        self._hist_layout = QVBoxLayout(self._hist_content)
+        self._hist_layout.setContentsMargins(28, 20, 28, 40)
+        self._hist_layout.setSpacing(10)
+        self._hist_layout.setAlignment(Qt.AlignTop)
+
+        # Placeholder
+        self._hist_placeholder = QLabel(
+            "📋  Koi saved simulation nahi mili.\n\n"
+            "Pehle ek simulation chalao aur '💾 Save Run' click karo."
+        )
+        self._hist_placeholder.setAlignment(Qt.AlignCenter)
+        self._hist_placeholder.setStyleSheet("color: #1A1A1A; font-size: 13px; padding: 80px; background: transparent; border: none;")
+        self._hist_layout.addWidget(self._hist_placeholder)
+
+        scroll.setWidget(self._hist_content)
+        root.addWidget(scroll)
 
     # ── Context Load ──────────────────────────────────────
 
@@ -623,3 +741,148 @@ class SimulationViewWidget(QWidget):
         lbl = QLabel(text)
         lbl.setStyleSheet("color: #222; font-size: 10px; font-weight: 700; letter-spacing: 2px; padding-top: 8px; background: transparent; border: none;")
         return lbl
+
+    # ── History Tab Methods ────────────────────────────────
+
+    def _load_history(self):
+        self._hist_worker = LoadHistoryWorker()
+        self._hist_worker.done.connect(self._on_history)
+        self._hist_worker.error.connect(self._on_history_error)
+        self._hist_worker.start()
+
+    def _on_history(self, runs: list):
+        self._rebuild_history(runs)
+
+    def _on_history_error(self, msg: str):
+        while self._hist_layout.count():
+            item = self._hist_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        err = QLabel(f"⚠  History load error: {msg}")
+        err.setAlignment(Qt.AlignCenter)
+        err.setStyleSheet("color: #333; font-size: 12px; padding: 40px; background: transparent; border: none;")
+        self._hist_layout.addWidget(err)
+
+    def _rebuild_history(self, runs: list):
+        # Clear existing
+        while self._hist_layout.count():
+            item = self._hist_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if not runs:
+            ph = QLabel(
+                "📋  Koi saved simulation nahi mili.\n\n"
+                "Pehle ek simulation chalao aur '💾 Save Run' click karo."
+            )
+            ph.setAlignment(Qt.AlignCenter)
+            ph.setStyleSheet("color: #1A1A1A; font-size: 13px; padding: 80px; background: transparent; border: none;")
+            self._hist_layout.addWidget(ph)
+            return
+
+        for run in runs:
+            card = self._make_history_card(run)
+            self._hist_layout.addWidget(card)
+
+        self._hist_layout.addStretch()
+
+    def _make_history_card(self, run: dict) -> QFrame:
+        card = QFrame()
+        card.setStyleSheet(
+            f"QFrame {{ background: #0A0A0A; border: 1px solid #141414; "
+            f"border-left: 4px solid {ACCENT}55; border-radius: 8px; }}"
+        )
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(18, 14, 18, 14)
+        lay.setSpacing(6)
+
+        # Header row
+        hdr = QHBoxLayout()
+        title_lbl = QLabel(f"🌐  {run['title']}")
+        title_lbl.setStyleSheet("color: #CCCCCC; font-size: 13px; font-weight: 700; background: transparent; border: none;")
+
+        run_id = QLabel(f"#{run['id']}")
+        run_id.setStyleSheet(f"color: {ACCENT}55; font-size: 11px; background: transparent; border: none;")
+
+        date_lbl = QLabel(run.get("created", ""))
+        date_lbl.setStyleSheet("color: #2A2A2A; font-size: 10px; background: transparent; border: none;")
+
+        hdr.addWidget(title_lbl)
+        hdr.addStretch()
+        hdr.addWidget(run_id)
+        hdr.addSpacing(8)
+        hdr.addWidget(date_lbl)
+        lay.addLayout(hdr)
+
+        # Premise snippet
+        premise = run.get("premise", "")
+        snippet = (premise[:140] + "…") if len(premise) > 140 else premise
+        if snippet:
+            p_lbl = QLabel(snippet)
+            p_lbl.setWordWrap(True)
+            p_lbl.setStyleSheet("color: #333; font-size: 11px; background: transparent; border: none;")
+            lay.addWidget(p_lbl)
+
+        # Outcomes count
+        outcomes = run.get("outcomes", [])
+        if isinstance(outcomes, list):
+            out_lbl = QLabel(f"  {len(outcomes)} entity outcomes")
+        else:
+            out_lbl = QLabel("")
+        out_lbl.setStyleSheet("color: #222; font-size: 10px; background: transparent; border: none;")
+
+        # Load button row
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(out_lbl)
+        btn_row.addStretch()
+
+        view_btn = QPushButton("▶  View Results")
+        view_btn.setFixedHeight(26)
+        view_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {ACCENT}; "
+            f"border: 1px solid {ACCENT}44; border-radius: 5px; "
+            f"font-size: 11px; font-weight: 600; padding: 0 12px; }}"
+            f"QPushButton:hover {{ background: {ACCENT}14; border-color: {ACCENT}; }}"
+        )
+        view_btn.clicked.connect(lambda _, r=run: self._view_history_run(r))
+        btn_row.addWidget(view_btn)
+        lay.addLayout(btn_row)
+
+        return card
+
+    def _view_history_run(self, run: dict):
+        """Load a past run into the results panel and switch to Tab 0."""
+        self._last_result = run
+        self._clear_results()
+        self._result_title.setText(f"🌐  {run['title']}")
+        self._result_title.setStyleSheet(
+            f"color: {ACCENT}; font-size: 14px; font-weight: 700; background: transparent; border: none;"
+        )
+        self._save_btn.setEnabled(False)
+
+        # Reasoning
+        reasoning = run.get("reasoning", "")
+        if reasoning:
+            self._res_layout.addWidget(self._section("AI REASONING  (saved run)"))
+            rl = QLabel(reasoning)
+            rl.setWordWrap(True)
+            rl.setStyleSheet("color: #333; font-size: 12px; line-height: 1.6; background: transparent; border: none;")
+            self._res_layout.addWidget(rl)
+
+        # Outcomes
+        outcomes = run.get("outcomes", [])
+        if isinstance(outcomes, list) and outcomes:
+            self._res_layout.addWidget(self._section(f"ENTITY OUTCOMES  ({len(outcomes)})"))
+            for o in outcomes:
+                if isinstance(o, dict):
+                    card = ImpactCard(o)
+                    self._res_layout.addWidget(card)
+
+        self._res_layout.addStretch()
+
+        # Switch to results tab (Tab 0)
+        parent = self.parent()
+        # Find and switch the QTabWidget inside this widget
+        for child in self.findChildren(QTabWidget):
+            child.setCurrentIndex(0)
+            break

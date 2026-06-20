@@ -587,10 +587,12 @@ class UniversesViewWidget(QWidget):
         root.addWidget(main_area)
 
         # ── Right: Slide-in form panel ──
-        self._form_panel = UniverseFormPanel(self)
-        self._form_panel.saved.connect(self._load)      # just reload cards
+        self._form_panel = UniverseFormPanel()
+        self._form_panel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        self._form_panel.saved.connect(self._load)
         self._form_panel.hide()
-        root.addWidget(self._form_panel)
+        root.addWidget(self._form_panel, 0)
+
 
     # ── Panel open/close ──────────────────────────────────
 

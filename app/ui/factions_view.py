@@ -663,10 +663,12 @@ class FactionsViewWidget(QWidget):
         root.addWidget(main_area)
 
         # ── Right: Slide-in form panel ──
-        self._form_panel = FactionFormPanel(self)
+        self._form_panel = FactionFormPanel()
+        self._form_panel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self._form_panel.saved.connect(self._load_factions)
         self._form_panel.hide()
-        root.addWidget(self._form_panel)
+        root.addWidget(self._form_panel, 0)
+
 
     # ── Universe loading ───────────────────────────────────
 

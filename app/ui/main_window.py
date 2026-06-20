@@ -9,6 +9,10 @@ from PySide6.QtWidgets import (
     QPushButton, QStackedWidget, QLabel, QFrame
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap, QIcon
+from pathlib import Path
+
+_LOGO_PATH = Path(__file__).resolve().parent.parent / "app" / "assets" / "logo.jpg"
 from app.ui.wiki_view import WikiViewWidget
 from app.ui.ai_chat_view import AIChatWidget
 from app.ui.graph_view import GraphViewWidget        # ← Module 8b: Graph
@@ -37,6 +41,10 @@ class ZenMainWindow(QMainWindow):
         self.resize(1280, 800)
         self.setStyleSheet("background-color: #0D0D0D; color: #FFFFFF;")
 
+        # Window icon
+        if _LOGO_PATH.exists():
+            self.setWindowIcon(QIcon(str(_LOGO_PATH)))
+
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
@@ -53,10 +61,26 @@ class ZenMainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(12, 28, 12, 28)
         sidebar_layout.setSpacing(4)
 
-        # Logo / Title
+        # ── Logo image at top of sidebar ──
+        if _LOGO_PATH.exists():
+            logo_lbl = QLabel()
+            pixmap = QPixmap(str(_LOGO_PATH))
+            # Scale to sidebar width, keep aspect ratio
+            scaled = pixmap.scaledToWidth(196, Qt.SmoothTransformation)
+            logo_lbl.setPixmap(scaled)
+            logo_lbl.setAlignment(Qt.AlignCenter)
+            logo_lbl.setStyleSheet(
+                "border: none; border-radius: 10px; "
+                "margin: 0 4px 0 4px;"
+            )
+            logo_lbl.setFixedHeight(scaled.height())
+            sidebar_layout.addWidget(logo_lbl)
+            sidebar_layout.addSpacing(8)
+
+        # ZEN AI text below the image
         title_label = QLabel("ZEN AI")
         title_label.setStyleSheet(
-            "font-size: 22px; font-weight: 900; color: #00ADB5; "
+            "font-size: 18px; font-weight: 900; color: #00ADB5; "
             "border: none; letter-spacing: 4px;"
         )
         title_label.setAlignment(Qt.AlignCenter)
@@ -64,11 +88,11 @@ class ZenMainWindow(QMainWindow):
 
         sub_label = QLabel("Zendrix Multiverse OS")
         sub_label.setStyleSheet(
-            "font-size: 10px; color: #333333; border: none; letter-spacing: 1px;"
+            "font-size: 9px; color: #2A2A2A; border: none; letter-spacing: 1px;"
         )
         sub_label.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(sub_label)
-        sidebar_layout.addSpacing(28)
+        sidebar_layout.addSpacing(20)
 
         # ── Page definitions ──────────────────────────
         # (name, icon, widget_factory or None for placeholder)

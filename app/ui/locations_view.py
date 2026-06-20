@@ -685,10 +685,12 @@ class LocationsViewWidget(QWidget):
         root.addWidget(main_area)
 
         # ── Right: Slide-in form panel ──
-        self._form_panel = LocationFormPanel(self)
+        self._form_panel = LocationFormPanel()
+        self._form_panel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self._form_panel.saved.connect(self._load_locations)
         self._form_panel.hide()
-        root.addWidget(self._form_panel)
+        root.addWidget(self._form_panel, 0)
+
 
     # ── Universe loading ───────────────────────────────────
 

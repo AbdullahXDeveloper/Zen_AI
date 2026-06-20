@@ -746,13 +746,16 @@ class CharactersViewWidget(QWidget):
         self._scroll.setWidget(self._cards_widget)
         left_lay.addWidget(self._scroll)
 
-        root.addWidget(main_area)
+        root.addWidget(main_area, 1)   # stretch=1 so main area takes all remaining space
 
         # ── Right: Slide-in form panel ──
-        self._form_panel = CharacterFormPanel(self)
-        self._form_panel.saved.connect(self._load_characters)   # just reload
+        self._form_panel = CharacterFormPanel()
+        self._form_panel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        self._form_panel.saved.connect(self._load_characters)
+        self._form_panel.cancelled.connect(self._load_characters)
         self._form_panel.hide()
-        root.addWidget(self._form_panel)
+        root.addWidget(self._form_panel, 0)   # stretch=0 so panel is only as wide as needed
+
 
     # ── Universe loading ───────────────────────────────────
 
