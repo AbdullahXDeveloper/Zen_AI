@@ -24,6 +24,8 @@ from app.ui.stories_view import StoriesViewWidget        # ← Phase 9H: Stories
 from app.ui.search_view import SearchViewWidget          # ← Search
 from app.ui.lore_upload_view import LoreUploadViewWidget # ← Lore Upload
 from app.ui.analytics_view import AnalyticsViewWidget    # ← Analytics
+from app.ui.settings_view import SettingsViewWidget      # ← Settings
+from app.ui.story_writer_view import StoryWriterViewWidget  # ← Module 11
 
 
 class ZenMainWindow(QMainWindow):
@@ -82,12 +84,13 @@ class ZenMainWindow(QMainWindow):
             ("Timeline",          "⏱", TimelineViewWidget),
             ("─────────────", "",  None),          # divider
             ("Wiki",              "📚", WikiViewWidget),
-            ("AI Assistant",      "✦", AIChatWidget),
+            ("AI Assistant",      "❆", AIChatWidget),
+            ("AI Story Writer",  "📕", StoryWriterViewWidget),
             ("─────────────", "",  None),          # divider
             ("Search",            "🔍", SearchViewWidget),
             ("Lore Upload",       "⬆", LoreUploadViewWidget),
             ("Analytics",        "📊", AnalyticsViewWidget),
-            ("Settings",          "⚙", None),
+            ("Settings",          "⚙", SettingsViewWidget),
         ]
 
         # ── Content Area ──────────────────────────────
@@ -134,7 +137,7 @@ class ZenMainWindow(QMainWindow):
         sidebar_layout.addStretch()
 
         # Version tag at bottom
-        ver_lbl = QLabel("v1.0")
+        ver_lbl = QLabel("v1.1")
         ver_lbl.setStyleSheet("color: #222; font-size: 10px; border: none;")
         ver_lbl.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(ver_lbl)
