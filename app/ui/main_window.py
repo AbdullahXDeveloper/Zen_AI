@@ -1,276 +1,24 @@
-# # # from PySide6.QtWidgets import (
-# # #     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
-# # #     QPushButton, QStackedWidget, QLabel, QFrame
-# # # )
-# # # from PySide6.QtCore import Qt
-
-# # # class ZenMainWindow(QMainWindow):
-# # #     def __init__(self):
-# # #         super().__init__()
-# # #         self.setWindowTitle("Zen AI - Zendrix Multiverse OS")
-# # #         self.resize(1280, 800)
-# # #         # Dark Theme Background
-# # #         self.setStyleSheet("background-color: #121212; color: #FFFFFF;")
-
-# # #         # Main Layout
-# # #         central_widget = QWidget()
-# # #         self.setCentralWidget(central_widget)
-# # #         main_layout = QHBoxLayout(central_widget)
-# # #         main_layout.setContentsMargins(0, 0, 0, 0)
-# # #         main_layout.setSpacing(0)
-
-# # #         # 1. Sidebar Setup
-# # #         self.sidebar = QFrame()
-# # #         self.sidebar.setFixedWidth(250)
-# # #         self.sidebar.setStyleSheet("background-color: #1E1E1E; border-right: 1px solid #333;")
-# # #         sidebar_layout = QVBoxLayout(self.sidebar)
-# # #         sidebar_layout.setContentsMargins(10, 20, 10, 20)
-# # #         sidebar_layout.setSpacing(5)
-
-# # #         # App Title in Sidebar
-# # #         title_label = QLabel("ZEN AI")
-# # #         title_label.setStyleSheet("font-size: 28px; font-weight: bold; color: #00ADB5; border: none; letter-spacing: 2px;")
-# # #         title_label.setAlignment(Qt.AlignCenter)
-# # #         sidebar_layout.addWidget(title_label)
-# # #         sidebar_layout.addSpacing(30)
-
-# # #         # 2. Main Content Area (Stacked Widget for different pages)
-# # #         self.content_area = QStackedWidget()
-        
-# # #         # Navigation Buttons
-# # #         self.nav_buttons = {}
-# # #         pages = [
-# # #             "Dashboard", "Universes", "Characters", "Factions", 
-# # #             "Lore Graph", "Timeline", "Wiki View", "AI Story Assistant"
-# # #         ]
-        
-# # #         for i, page_name in enumerate(pages):
-# # #             btn = QPushButton(page_name)
-# # #             btn.setStyleSheet("""
-# # #                 QPushButton {
-# # #                     background-color: transparent;
-# # #                     color: #A0A0A0;
-# # #                     text-align: left;
-# # #                     padding: 12px 15px;
-# # #                     border: none;
-# # #                     border-radius: 6px;
-# # #                     font-size: 16px;
-# # #                 }
-# # #                 QPushButton:hover { background-color: #2D2D2D; color: #FFF; }
-# # #                 QPushButton:checked { background-color: #00ADB5; color: #FFF; font-weight: bold; }
-# # #             """)
-# # #             btn.setCheckable(True)
-# # #             btn.clicked.connect(lambda checked, index=i: self.switch_page(index))
-# # #             sidebar_layout.addWidget(btn)
-# # #             self.nav_buttons[i] = btn
-            
-# # #             # Har section ke liye ek dummy page (jab tak hum inhe aage build nahi karte)
-# # #             dummy_page = QLabel(f"{page_name} Module - Under Construction")
-# # #             dummy_page.setAlignment(Qt.AlignCenter)
-# # #             dummy_page.setStyleSheet("font-size: 24px; color: #555;")
-# # #             self.content_area.addWidget(dummy_page)
-
-# # #         sidebar_layout.addStretch()
-
-# # #         # UI mein widgets add karna
-# # #         main_layout.addWidget(self.sidebar)
-# # #         main_layout.addWidget(self.content_area)
-
-# # #         # Default dashboard open rakhein
-# # #         self.switch_page(0)
-
-# # #     def switch_page(self, index):
-# # #         # Content update karein
-# # #         self.content_area.setCurrentIndex(index)
-        
-# # #         # Button ka color update karein (jo active hai use highlight karein)
-# # #         for i, btn in self.nav_buttons.items():
-# # #             btn.setChecked(i == index)
-# # from PySide6.QtWidgets import (
-# #     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
-# #     QPushButton, QStackedWidget, QLabel, QFrame
-# # )
-# # from PySide6.QtCore import Qt
-# # from app.ui.wiki_view import WikiViewWidget
-
-# # class ZenMainWindow(QMainWindow):
-# #     def __init__(self):
-# #         super().__init__()
-# #         self.setWindowTitle("Zen AI - Zendrix Multiverse OS")
-# #         self.resize(1280, 800)
-# #         self.setStyleSheet("background-color: #0D0D0D; color: #FFFFFF;")
-
-# #         central_widget = QWidget()
-# #         self.setCentralWidget(central_widget)
-# #         main_layout = QHBoxLayout(central_widget)
-# #         main_layout.setContentsMargins(0, 0, 0, 0)
-# #         main_layout.setSpacing(0)
-
-# #         # 1. Sidebar Setup
-# #         self.sidebar = QFrame()
-# #         self.sidebar.setFixedWidth(260)
-# #         self.sidebar.setStyleSheet("background-color: #151515; border-right: 1px solid #222;")
-# #         sidebar_layout = QVBoxLayout(self.sidebar)
-# #         sidebar_layout.setContentsMargins(15, 30, 15, 30)
-# #         sidebar_layout.setSpacing(8)
-
-# #         # App Title
-# #         title_label = QLabel("ZEN AI")
-# #         title_label.setStyleSheet("font-size: 26px; font-weight: 900; color: #00ADB5; border: none; letter-spacing: 3px;")
-# #         title_label.setAlignment(Qt.AlignCenter)
-# #         sidebar_layout.addWidget(title_label)
-# #         sidebar_layout.addSpacing(40)
-
-# #         # 2. Main Content Area
-# #         self.content_area = QStackedWidget()
-        
-# #         # Setup Pages
-# #         self.nav_buttons = {}
-# #         pages = [
-# #             "Dashboard", "Universes", "Characters", "Factions", 
-# #             "Lore Graph", "Timeline", "Wiki View", "AI Story Assistant"
-# #         ]
-        
-# #         for i, page_name in enumerate(pages):
-# #             btn = QPushButton(page_name)
-# #             btn.setStyleSheet("""
-# #                 QPushButton {
-# #                     background-color: transparent;
-# #                     color: #888888;
-# #                     text-align: left;
-# #                     padding: 14px 18px;
-# #                     border: none;
-# #                     border-radius: 6px;
-# #                     font-weight: 600;
-# #                 }
-# #                 QPushButton:hover { background-color: #1E1E1E; color: #E0E0E0; }
-# #                 QPushButton:checked { background-color: #00ADB5; color: #FFFFFF; }
-# #             """)
-# #             btn.setCheckable(True)
-# #             btn.clicked.connect(lambda checked, index=i: self.switch_page(index))
-# #             sidebar_layout.addWidget(btn)
-# #             self.nav_buttons[i] = btn
-            
-# #             # Agar index 6 (Wiki View) hai, toh real widget load karo, warna dummy page
-# #             if i == 6:
-# #                 self.content_area.addWidget(WikiViewWidget())
-# #             else:
-# #                 dummy_page = QLabel(f"{page_name} Module - Under Construction")
-# #                 dummy_page.setAlignment(Qt.AlignCenter)
-# #                 dummy_page.setStyleSheet("font-size: 20px; color: #444;")
-# #                 self.content_area.addWidget(dummy_page)
-
-# #         sidebar_layout.addStretch()
-
-# #         main_layout.addWidget(self.sidebar)
-# #         main_layout.addWidget(self.content_area)
-
-# #         # Default dashboard open rakhein
-# #         self.switch_page(0)
-
-# #     def switch_page(self, index):
-# #         self.content_area.setCurrentIndex(index)
-# #         for i, btn in self.nav_buttons.items():
-# #             btn.setChecked(i == index)
-# from PySide6.QtWidgets import (
-#     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
-#     QPushButton, QStackedWidget, QLabel, QFrame
-# )
-# from PySide6.QtCore import Qt
-# from app.ui.wiki_view import WikiViewWidget
-# from app.ui.ai_chat_view import AIChatWidget 
-# class ZenMainWindow(QMainWindow):
-#     def __init__(self):
-#         super().__init__()
-#         self.setWindowTitle("Zen AI - Zendrix Multiverse OS")
-#         self.resize(1280, 800)
-#         self.setStyleSheet("background-color: #0D0D0D; color: #FFFFFF;")
-
-#         central_widget = QWidget()
-#         self.setCentralWidget(central_widget)
-#         main_layout = QHBoxLayout(central_widget)
-#         main_layout.setContentsMargins(0, 0, 0, 0)
-#         main_layout.setSpacing(0)
-
-#         # 1. Sidebar Setup
-#         self.sidebar = QFrame()
-#         self.sidebar.setFixedWidth(260)
-#         self.sidebar.setStyleSheet("background-color: #151515; border-right: 1px solid #222;")
-#         sidebar_layout = QVBoxLayout(self.sidebar)
-#         sidebar_layout.setContentsMargins(15, 30, 15, 30)
-#         sidebar_layout.setSpacing(8)
-
-#         # App Title
-#         title_label = QLabel("ZEN AI")
-#         title_label.setStyleSheet("font-size: 26px; font-weight: 900; color: #00ADB5; border: none; letter-spacing: 3px;")
-#         title_label.setAlignment(Qt.AlignCenter)
-#         sidebar_layout.addWidget(title_label)
-#         sidebar_layout.addSpacing(40)
-
-#         # 2. Main Content Area
-#         self.content_area = QStackedWidget()
-        
-#         # Setup Pages
-#         self.nav_buttons = {}
-#         pages = [
-#             "Dashboard", "Universes", "Characters", "Factions", 
-#             "Lore Graph", "Timeline", "Wiki View", "AI Story Assistant"
-#         ]
-        
-#         for i, page_name in enumerate(pages):
-#             btn = QPushButton(page_name)
-#             btn.setStyleSheet("""
-#                 QPushButton {
-#                     background-color: transparent;
-#                     color: #888888;
-#                     text-align: left;
-#                     padding: 14px 18px;
-#                     border: none;
-#                     border-radius: 6px;
-#                     font-weight: 600;
-#                 }
-#                 QPushButton:hover { background-color: #1E1E1E; color: #E0E0E0; }
-#                 QPushButton:checked { background-color: #00ADB5; color: #FFFFFF; }
-#             """)
-#             btn.setCheckable(True)
-#             btn.clicked.connect(lambda checked, index=i: self.switch_page(index))
-#             sidebar_layout.addWidget(btn)
-#             self.nav_buttons[i] = btn
-            
-#             # Agar index 6 (Wiki View) hai, toh real widget load karo, warna dummy page
-#             if i == 6:
-#                 self.content_area.addWidget(WikiViewWidget())
-#             else:
-#                 dummy_page = QLabel(f"{page_name} Module - Under Construction")
-#                 dummy_page.setAlignment(Qt.AlignCenter)
-#                 dummy_page.setStyleSheet("font-size: 20px; color: #444;")
-#                 self.content_area.addWidget(dummy_page)
-
-#         sidebar_layout.addStretch()
-
-#         main_layout.addWidget(self.sidebar)
-#         main_layout.addWidget(self.content_area)
-
-#         # Default dashboard open rakhein
-#         self.switch_page(0)
-
-#     def switch_page(self, index):
-#         self.content_area.setCurrentIndex(index)
-#         for i, btn in self.nav_buttons.items():
-#             btn.setChecked(i == index)
+"""
+app/ui/main_window.py
+Zen AI — Main Window (Updated: Module 8b)
+Graph View (Module 3) aur Timeline View (Module 4) ab integrate ho gaye hain.
+"""
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
+    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QPushButton, QStackedWidget, QLabel, QFrame
 )
 from PySide6.QtCore import Qt
 from app.ui.wiki_view import WikiViewWidget
-from app.ui.ai_chat_view import AIChatWidget  # <-- Naya AI Chat Widget Import
+from app.ui.ai_chat_view import AIChatWidget
+from app.ui.graph_view import GraphViewWidget        # ← Module 8b: Graph
+from app.ui.timeline_view import TimelineViewWidget  # ← Module 8b: Timeline
+
 
 class ZenMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Zen AI - Zendrix Multiverse OS")
+        self.setWindowTitle("Zen AI — Zendrix Multiverse OS")
         self.resize(1280, 800)
         self.setStyleSheet("background-color: #0D0D0D; color: #FFFFFF;")
 
@@ -280,75 +28,146 @@ class ZenMainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # 1. Sidebar Setup
+        # ── Sidebar ────────────────────────────────────
         self.sidebar = QFrame()
-        self.sidebar.setFixedWidth(260)
-        self.sidebar.setStyleSheet("background-color: #151515; border-right: 1px solid #222;")
+        self.sidebar.setFixedWidth(220)
+        self.sidebar.setStyleSheet(
+            "background-color: #111111; border-right: 1px solid #1E1E1E;"
+        )
         sidebar_layout = QVBoxLayout(self.sidebar)
-        sidebar_layout.setContentsMargins(15, 30, 15, 30)
-        sidebar_layout.setSpacing(8)
+        sidebar_layout.setContentsMargins(12, 28, 12, 28)
+        sidebar_layout.setSpacing(4)
 
-        # App Title
+        # Logo / Title
         title_label = QLabel("ZEN AI")
-        title_label.setStyleSheet("font-size: 26px; font-weight: 900; color: #00ADB5; border: none; letter-spacing: 3px;")
+        title_label.setStyleSheet(
+            "font-size: 22px; font-weight: 900; color: #00ADB5; "
+            "border: none; letter-spacing: 4px;"
+        )
         title_label.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(title_label)
-        sidebar_layout.addSpacing(40)
 
-        # 2. Main Content Area
-        self.content_area = QStackedWidget()
-        
-        # Setup Pages
-        self.nav_buttons = {}
-        pages = [
-            "Dashboard", "Universes", "Characters", "Factions", 
-            "Lore Graph", "Timeline", "Wiki View", "AI Story Assistant"
+        sub_label = QLabel("Zendrix Multiverse OS")
+        sub_label.setStyleSheet(
+            "font-size: 10px; color: #333333; border: none; letter-spacing: 1px;"
+        )
+        sub_label.setAlignment(Qt.AlignCenter)
+        sidebar_layout.addWidget(sub_label)
+        sidebar_layout.addSpacing(28)
+
+        # ── Page definitions ──────────────────────────
+        # (name, icon, widget_factory or None for placeholder)
+        self._pages = [
+            ("Dashboard",         "◈", None),
+            ("Universes",         "🌐", None),
+            ("Characters",        "👤", None),
+            ("Factions",          "⚔", None),
+            ("Locations",         "📍", None),
+            ("Artifacts",         "💎", None),
+            ("Events",            "📅", None),
+            ("Stories",           "📖", None),
+            ("─────────────", "",  None),          # divider
+            ("Lore Graph",        "⬡", GraphViewWidget),
+            ("Timeline",          "⏱", TimelineViewWidget),
+            ("─────────────", "",  None),          # divider
+            ("Wiki",              "📚", WikiViewWidget),
+            ("AI Assistant",      "✦", AIChatWidget),
+            ("─────────────", "",  None),          # divider
+            ("Search",            "🔍", None),
+            ("Lore Upload",       "⬆", None),
+            ("Settings",          "⚙", None),
         ]
-        
-        for i, page_name in enumerate(pages):
-            btn = QPushButton(page_name)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: transparent;
-                    color: #888888;
-                    text-align: left;
-                    padding: 14px 18px;
-                    border: none;
-                    border-radius: 6px;
-                    font-weight: 600;
-                }
-                QPushButton:hover { background-color: #1E1E1E; color: #E0E0E0; }
-                QPushButton:checked { background-color: #00ADB5; color: #FFFFFF; }
-            """)
+
+        # ── Content Area ──────────────────────────────
+        self.content_area = QStackedWidget()
+        self.nav_buttons = {}
+        self._page_index = 0   # tracks real stacked-widget index (skips dividers)
+
+        # Section group labels
+        def section_label(text):
+            lbl = QLabel(text)
+            lbl.setStyleSheet(
+                "color: #2A2A2A; font-size: 10px; font-weight: 700; "
+                "letter-spacing: 2px; padding: 12px 8px 4px 8px; border: none;"
+            )
+            return lbl
+
+        stack_idx = 0   # real QStackedWidget index
+        for page_name, icon, factory in self._pages:
+            # ── Divider / section label ──
+            if page_name.startswith("──"):
+                sidebar_layout.addSpacing(6)
+                continue
+
+            # ── Nav button ──
+            btn = QPushButton(f"  {icon}  {page_name}")
+            btn.setStyleSheet(self._btn_style())
             btn.setCheckable(True)
-            btn.clicked.connect(lambda checked, index=i: self.switch_page(index))
+            btn.setFixedHeight(38)
+            btn.clicked.connect(
+                lambda checked, idx=stack_idx: self.switch_page(idx)
+            )
             sidebar_layout.addWidget(btn)
-            self.nav_buttons[i] = btn
-            
-            # ---> YAHAN WOH CODE ADD HUA HAI <---
-            
-            # Agar index 6 (Wiki View) hai
-            if i == 6:
-                self.content_area.addWidget(WikiViewWidget())
-            # Agar index 7 (AI Story Assistant) hai
-            elif i == 7:
-                self.content_area.addWidget(AIChatWidget())
-            # Baqi sab ke liye dummy page
+            self.nav_buttons[stack_idx] = btn
+
+            # ── Page widget ──
+            if factory is not None:
+                widget = factory()
             else:
-                dummy_page = QLabel(f"{page_name} Module - Under Construction")
-                dummy_page.setAlignment(Qt.AlignCenter)
-                dummy_page.setStyleSheet("font-size: 20px; color: #444;")
-                self.content_area.addWidget(dummy_page)
+                widget = self._placeholder(page_name)
+            self.content_area.addWidget(widget)
+
+            stack_idx += 1
 
         sidebar_layout.addStretch()
+
+        # Version tag at bottom
+        ver_lbl = QLabel("v0.8b")
+        ver_lbl.setStyleSheet("color: #222; font-size: 10px; border: none;")
+        ver_lbl.setAlignment(Qt.AlignCenter)
+        sidebar_layout.addWidget(ver_lbl)
 
         main_layout.addWidget(self.sidebar)
         main_layout.addWidget(self.content_area)
 
-        # Default dashboard open rakhein
+        # Open dashboard by default
         self.switch_page(0)
 
-    def switch_page(self, index):
+    # ── Helpers ──────────────────────────────────────
+
+    def _placeholder(self, name: str) -> QLabel:
+        lbl = QLabel(f"{name}\n\nUnder Construction")
+        lbl.setAlignment(Qt.AlignCenter)
+        lbl.setStyleSheet(
+            "color: #222222; font-size: 18px; font-weight: 600; "
+            "background: #0D0D0D;"
+        )
+        return lbl
+
+    def _btn_style(self) -> str:
+        return """
+            QPushButton {
+                background-color: transparent;
+                color: #555555;
+                text-align: left;
+                padding: 0 10px;
+                border: none;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #1A1A1A;
+                color: #CCCCCC;
+            }
+            QPushButton:checked {
+                background-color: #002B2E;
+                color: #00ADB5;
+                border-left: 2px solid #00ADB5;
+            }
+        """
+
+    def switch_page(self, index: int):
         self.content_area.setCurrentIndex(index)
         for i, btn in self.nav_buttons.items():
             btn.setChecked(i == index)
