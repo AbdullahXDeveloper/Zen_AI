@@ -26,6 +26,7 @@ from app.ui.lore_upload_view import LoreUploadViewWidget # ← Lore Upload
 from app.ui.analytics_view import AnalyticsViewWidget    # ← Analytics
 from app.ui.settings_view import SettingsViewWidget      # ← Settings
 from app.ui.story_writer_view import StoryWriterViewWidget  # ← Module 11
+from app.ui.cosmic_view import CosmicViewWidget          # ← Module 9: Cosmic View
 
 
 class ZenMainWindow(QMainWindow):
@@ -81,6 +82,7 @@ class ZenMainWindow(QMainWindow):
             ("Stories",           "📖", StoriesViewWidget),
             ("─────────────", "",  None),          # divider
             ("Lore Graph",        "⬡", GraphViewWidget),
+            ("Cosmic View",      "✴", CosmicViewWidget),
             ("Timeline",          "⏱", TimelineViewWidget),
             ("─────────────", "",  None),          # divider
             ("Wiki",              "📚", WikiViewWidget),
@@ -137,7 +139,7 @@ class ZenMainWindow(QMainWindow):
         sidebar_layout.addStretch()
 
         # Version tag at bottom
-        ver_lbl = QLabel("v1.1")
+        ver_lbl = QLabel("v1.2")
         ver_lbl.setStyleSheet("color: #222; font-size: 10px; border: none;")
         ver_lbl.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(ver_lbl)
