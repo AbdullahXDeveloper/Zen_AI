@@ -27,6 +27,7 @@ from app.ui.analytics_view import AnalyticsViewWidget    # ← Analytics
 from app.ui.settings_view import SettingsViewWidget      # ← Settings
 from app.ui.story_writer_view import StoryWriterViewWidget  # ← Module 11
 from app.ui.cosmic_view import CosmicViewWidget          # ← Module 9: Cosmic View
+from app.ui.simulation_view import SimulationViewWidget  # ← Module 12: World Simulation
 
 
 class ZenMainWindow(QMainWindow):
@@ -92,6 +93,7 @@ class ZenMainWindow(QMainWindow):
             ("Search",            "🔍", SearchViewWidget),
             ("Lore Upload",       "⬆", LoreUploadViewWidget),
             ("Analytics",        "📊", AnalyticsViewWidget),
+            ("Simulation",       "🌐", SimulationViewWidget),
             ("Settings",          "⚙", SettingsViewWidget),
         ]
 
@@ -139,7 +141,7 @@ class ZenMainWindow(QMainWindow):
         sidebar_layout.addStretch()
 
         # Version tag at bottom
-        ver_lbl = QLabel("v1.2")
+        ver_lbl = QLabel("v1.3")
         ver_lbl.setStyleSheet("color: #222; font-size: 10px; border: none;")
         ver_lbl.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(ver_lbl)
