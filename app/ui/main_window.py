@@ -16,6 +16,11 @@ from app.ui.timeline_view import TimelineViewWidget  # ← Module 8b: Timeline
 from app.ui.dashboard_view import DashboardWidget    # ← Phase 9A: Dashboard
 from app.ui.universes_view import UniversesViewWidget    # ← Phase 9B: Universes
 from app.ui.characters_view import CharactersViewWidget  # ← Phase 9C: Characters
+from app.ui.factions_view import FactionsViewWidget      # ← Phase 9D: Factions
+from app.ui.locations_view import LocationsViewWidget    # ← Phase 9E: Locations
+from app.ui.artifacts_view import ArtifactsViewWidget    # ← Phase 9F: Artifacts
+from app.ui.events_view import EventsViewWidget          # ← Phase 9G: Events
+from app.ui.stories_view import StoriesViewWidget        # ← Phase 9H: Stories
 
 
 class ZenMainWindow(QMainWindow):
@@ -64,11 +69,11 @@ class ZenMainWindow(QMainWindow):
             ("Dashboard",         "◈", DashboardWidget),
             ("Universes",         "🌐", UniversesViewWidget),
             ("Characters",        "👤", CharactersViewWidget),
-            ("Factions",          "⚔", None),
-            ("Locations",         "📍", None),
-            ("Artifacts",         "💎", None),
-            ("Events",            "📅", None),
-            ("Stories",           "📖", None),
+            ("Factions",          "⚔", FactionsViewWidget),
+            ("Locations",         "📍", LocationsViewWidget),
+            ("Artifacts",         "💎", ArtifactsViewWidget),
+            ("Events",            "📅", EventsViewWidget),
+            ("Stories",           "📖", StoriesViewWidget),
             ("─────────────", "",  None),          # divider
             ("Lore Graph",        "⬡", GraphViewWidget),
             ("Timeline",          "⏱", TimelineViewWidget),
@@ -125,7 +130,7 @@ class ZenMainWindow(QMainWindow):
         sidebar_layout.addStretch()
 
         # Version tag at bottom
-        ver_lbl = QLabel("v0.9c")
+        ver_lbl = QLabel("v0.9h")
         ver_lbl.setStyleSheet("color: #222; font-size: 10px; border: none;")
         ver_lbl.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(ver_lbl)

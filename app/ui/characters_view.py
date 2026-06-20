@@ -5,19 +5,22 @@ Zen AI — Characters CRUD Page (Phase 9C)
 Features:
   - Card grid: all characters, color-coded by canon_status
   - Filter bar: universe, canon_status, search by name
-  - Slide-in right panel: Create / Edit form (all fields)
+  - Slide-in right panel: Create / Edit form (all fields, scrollable)
   - Delete confirmation dialog
   - QThread workers for non-blocking DB ops
+
+Fixes (v2):
+  - Form panel has fixed header (✕ close) + fixed footer (Cancel/Save)
+  - Panel closes itself immediately on save/cancel
 """
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QPushButton, QLineEdit, QComboBox,
     QTextEdit, QSlider, QMessageBox, QGridLayout,
-    QSizePolicy, QSpacerItem
+    QSizePolicy
 )
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QFont
 
 from app.database.db_init import get_session
 from app.database import crud
@@ -82,7 +85,7 @@ class LoadCharactersWorker(QThread):
             self.error.emit(str(e))
 
 
-class LoadUniversesWorker(QThread):
+class LoadUniversesForCharWorker(QThread):
     done  = Signal(list)
     error = Signal(str)
 
@@ -167,24 +170,21 @@ class CharacterCard(QFrame):
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(18, 14, 18, 14)
-        lay.setSpacing(6)
+        lay.setSpacing(5)
 
         # ── Header row ──
         hdr = QHBoxLayout()
-
         name_lbl = QLabel(f"👤  {data['name']}")
         name_lbl.setStyleSheet(
             "color: #EEEEEE; font-size: 15px; font-weight: 700; "
             "background: transparent; border: none;"
         )
-
         canon_lbl = QLabel(data["canon_status"].replace("_", " ").upper())
         canon_lbl.setStyleSheet(
             f"color: {color}; font-size: 9px; font-weight: 700; "
             f"background: {color}18; border: 1px solid {color}44; "
             "border-radius: 4px; padding: 2px 8px;"
         )
-
         hdr.addWidget(name_lbl)
         hdr.addStretch()
         hdr.addWidget(canon_lbl)
@@ -206,14 +206,14 @@ class CharacterCard(QFrame):
         meta_row.addStretch()
         lay.addLayout(meta_row)
 
-        # ── Traits pills (top 3) ──
+        # ── Trait pills (top 3) ──
         traits = data.get("traits_json") or {}
         if traits:
             top_traits = sorted(traits.items(), key=lambda x: x[1], reverse=True)[:3]
             trait_row = QHBoxLayout()
             trait_row.setSpacing(6)
-            for trait_name, val in top_traits:
-                pill = QLabel(f"{trait_name} {val}")
+            for t_name, val in top_traits:
+                pill = QLabel(f"{t_name} {val}")
                 pill.setStyleSheet(
                     f"color: {color}; font-size: 9px; font-weight: 600; "
                     f"background: {color}12; border: 1px solid {color}33; "
@@ -246,7 +246,6 @@ class CharacterCard(QFrame):
         score_lbl.setStyleSheet(
             f"color: {color}88; font-size: 11px; background: transparent; border: none;"
         )
-
         edit_btn = QPushButton("✎  Edit")
         edit_btn.setFixedSize(70, 26)
         edit_btn.setStyleSheet(self._action_btn("#00ADB5"))
@@ -268,22 +267,16 @@ class CharacterCard(QFrame):
     def _action_btn(color: str) -> str:
         return f"""
             QPushButton {{
-                background: transparent;
-                color: {color};
-                border: 1px solid {color}44;
-                border-radius: 5px;
-                font-size: 11px;
-                font-weight: 600;
+                background: transparent; color: {color};
+                border: 1px solid {color}44; border-radius: 5px;
+                font-size: 11px; font-weight: 600;
             }}
-            QPushButton:hover {{
-                background: {color}18;
-                border-color: {color};
-            }}
+            QPushButton:hover {{ background: {color}18; border-color: {color}; }}
         """
 
 
 # ─────────────────────────────────────────────────────────
-# Slide-in Form Panel
+# Slide-in Form Panel  (FIXED: header + footer always visible)
 # ─────────────────────────────────────────────────────────
 class CharacterFormPanel(QFrame):
     """Right-side slide-in panel for Create / Edit."""
@@ -292,23 +285,85 @@ class CharacterFormPanel(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._edit_id    = None
-        self._worker     = None
-        self._universes  = []  # [{id, name}]
+        self._edit_id   = None
+        self._worker    = None
+        self._universes = []
 
         self.setFixedWidth(400)
-        self.setStyleSheet("""
-            QFrame {
-                background: #111111;
-                border-left: 1px solid #1E1E1E;
+        self.setStyleSheet("QFrame { background: #111111; border-left: 1px solid #1E1E1E; }")
+
+        main = QVBoxLayout(self)
+        main.setContentsMargins(0, 0, 0, 0)
+        main.setSpacing(0)
+
+        # ── Fixed Header (title + Cancel + Save + ✕) ──
+        header = QFrame()
+        header.setFixedHeight(60)
+        header.setStyleSheet("background: #111111; border-bottom: 1px solid #1E1E1E;")
+        h_lay = QHBoxLayout(header)
+        h_lay.setContentsMargins(20, 0, 12, 0)
+        h_lay.setSpacing(8)
+
+        self._title = QLabel("New Character")
+        self._title.setStyleSheet(
+            "color: #9b59b6; font-size: 15px; font-weight: 800; "
+            "background: transparent; border: none;"
+        )
+
+        self._status = QLabel("")
+        self._status.setStyleSheet(
+            "color: #e74c3c; font-size: 10px; background: transparent; border: none;"
+        )
+
+        self._cancel_btn = QPushButton("Cancel")
+        self._cancel_btn.setFixedHeight(30)
+        self._cancel_btn.setFixedWidth(64)
+        self._cancel_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent; color: #666;
+                border: 1px solid #333; border-radius: 5px;
+                font-size: 12px; font-weight: 600;
             }
+            QPushButton:hover { color: #AAA; border-color: #555; }
         """)
+        self._cancel_btn.clicked.connect(self._cancel)
 
-        # ── Scroll wrapper so all fields fit on small screens ──
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
+        self._save_btn = QPushButton("✓  Save")
+        self._save_btn.setFixedHeight(30)
+        self._save_btn.setFixedWidth(80)
+        self._save_btn.setStyleSheet("""
+            QPushButton {
+                background: #9b59b6; color: #FFF;
+                border: none; border-radius: 5px;
+                font-size: 12px; font-weight: 700;
+            }
+            QPushButton:hover { background: #a96cc7; }
+            QPushButton:disabled { background: #2A1A3A; color: #555; }
+        """)
+        self._save_btn.clicked.connect(self._save)
 
+        x_btn = QPushButton("✕")
+        x_btn.setFixedSize(28, 28)
+        x_btn.setToolTip("Close")
+        x_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent; color: #444;
+                border: none; font-size: 14px; border-radius: 5px;
+            }
+            QPushButton:hover { color: #e74c3c; background: #1A1A1A; }
+        """)
+        x_btn.clicked.connect(self._cancel)
+
+        h_lay.addWidget(self._title)
+        h_lay.addStretch()
+        h_lay.addWidget(self._status)
+        h_lay.addWidget(self._cancel_btn)
+        h_lay.addWidget(self._save_btn)
+        h_lay.addSpacing(4)
+        h_lay.addWidget(x_btn)
+        main.addWidget(header)
+
+        # ── Scrollable Fields ──
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("""
@@ -316,31 +371,12 @@ class CharacterFormPanel(QFrame):
             QScrollBar:vertical { background: #0D0D0D; width: 5px; }
             QScrollBar::handle:vertical { background: #2A2A2A; border-radius: 2px; }
         """)
-        inner = QWidget()
-        inner.setStyleSheet("background: #111111;")
-        self._lay = QVBoxLayout(inner)
-        self._lay.setContentsMargins(28, 28, 28, 28)
-        self._lay.setSpacing(14)
-        scroll.setWidget(inner)
-        outer.addWidget(scroll)
+        fw = QWidget()
+        fw.setStyleSheet("background: #111111;")
+        lay = QVBoxLayout(fw)
+        lay.setContentsMargins(24, 18, 24, 18)
+        lay.setSpacing(10)
 
-        lay = self._lay
-
-        # ── Title ──
-        self._title = QLabel("New Character")
-        self._title.setStyleSheet(
-            "color: #9b59b6; font-size: 17px; font-weight: 800; "
-            "background: transparent; border: none;"
-        )
-        lay.addWidget(self._title)
-
-        # ── Divider ──
-        div = QFrame()
-        div.setFixedHeight(1)
-        div.setStyleSheet("background: #1E1E1E; border: none;")
-        lay.addWidget(div)
-
-        # ── Field styles ──
         def _lbl(t):
             l = QLabel(t)
             l.setStyleSheet(
@@ -351,19 +387,13 @@ class CharacterFormPanel(QFrame):
 
         fs = """
             QLineEdit, QTextEdit, QComboBox {
-                background: #0D0D0D;
-                color: #CCCCCC;
-                border: 1px solid #222;
-                border-radius: 6px;
-                padding: 7px 12px;
-                font-size: 13px;
+                background: #0D0D0D; color: #CCCCCC;
+                border: 1px solid #222; border-radius: 6px;
+                padding: 7px 12px; font-size: 13px;
             }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-                border-color: #9b59b6;
-            }
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus { border-color: #9b59b6; }
             QComboBox QAbstractItemView {
-                background: #111;
-                color: #CCC;
+                background: #111; color: #CCC;
                 selection-background-color: #9b59b6;
             }
         """
@@ -405,8 +435,8 @@ class CharacterFormPanel(QFrame):
         # Personality
         lay.addWidget(_lbl("PERSONALITY"))
         self.personality_input = QTextEdit()
-        self.personality_input.setPlaceholderText("Character ki personality describe karein...")
-        self.personality_input.setFixedHeight(72)
+        self.personality_input.setPlaceholderText("Character ki personality...")
+        self.personality_input.setFixedHeight(68)
         self.personality_input.setStyleSheet(fs)
         lay.addWidget(self.personality_input)
 
@@ -414,7 +444,7 @@ class CharacterFormPanel(QFrame):
         lay.addWidget(_lbl("MOTIVATIONS"))
         self.motivations_input = QTextEdit()
         self.motivations_input.setPlaceholderText("Character kya chahta hai?")
-        self.motivations_input.setFixedHeight(60)
+        self.motivations_input.setFixedHeight(56)
         self.motivations_input.setStyleSheet(fs)
         lay.addWidget(self.motivations_input)
 
@@ -422,15 +452,15 @@ class CharacterFormPanel(QFrame):
         lay.addWidget(_lbl("GOALS"))
         self.goals_input = QTextEdit()
         self.goals_input.setPlaceholderText("Long-term goals...")
-        self.goals_input.setFixedHeight(60)
+        self.goals_input.setFixedHeight(56)
         self.goals_input.setStyleSheet(fs)
         lay.addWidget(self.goals_input)
 
         # Ideology
         lay.addWidget(_lbl("IDEOLOGY"))
         self.ideology_input = QTextEdit()
-        self.ideology_input.setPlaceholderText("Character ki beliefs / worldview...")
-        self.ideology_input.setFixedHeight(60)
+        self.ideology_input.setPlaceholderText("Beliefs / worldview...")
+        self.ideology_input.setFixedHeight(56)
         self.ideology_input.setStyleSheet(fs)
         lay.addWidget(self.ideology_input)
 
@@ -449,67 +479,25 @@ class CharacterFormPanel(QFrame):
         self.score_slider.setRange(1, 100)
         self.score_slider.setValue(50)
         self.score_slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                background: #1A1A1A; height: 6px; border-radius: 3px;
-            }
-            QSlider::handle:horizontal {
-                background: #9b59b6; width: 16px; height: 16px;
-                margin: -5px 0; border-radius: 8px;
-            }
+            QSlider::groove:horizontal { background: #1A1A1A; height: 6px; border-radius: 3px; }
+            QSlider::handle:horizontal { background: #9b59b6; width: 16px; height: 16px; margin: -5px 0; border-radius: 8px; }
             QSlider::sub-page:horizontal { background: #9b59b6; border-radius: 3px; }
         """)
         self.score_val = QLabel("50")
         self.score_val.setFixedWidth(30)
         self.score_val.setStyleSheet(
-            "color: #9b59b6; font-size: 13px; font-weight: 700; "
-            "background: transparent; border: none;"
+            "color: #9b59b6; font-size: 13px; font-weight: 700; background: transparent; border: none;"
         )
-        self.score_slider.valueChanged.connect(
-            lambda v: self.score_val.setText(str(v))
-        )
+        self.score_slider.valueChanged.connect(lambda v: self.score_val.setText(str(v)))
         score_row.addWidget(self.score_slider)
         score_row.addWidget(self.score_val)
         lay.addLayout(score_row)
+        lay.addStretch()
 
-        # ── Status ──
-        self._status = QLabel("")
-        self._status.setStyleSheet(
-            "color: #e74c3c; font-size: 11px; background: transparent; border: none;"
-        )
-        lay.addWidget(self._status)
+        scroll.setWidget(fw)
+        main.addWidget(scroll)
 
-        # ── Buttons ──
-        btn_row = QHBoxLayout()
-        self._cancel_btn = QPushButton("Cancel")
-        self._cancel_btn.setFixedHeight(36)
-        self._cancel_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent; color: #444;
-                border: 1px solid #222; border-radius: 6px;
-                font-size: 13px; font-weight: 600;
-            }
-            QPushButton:hover { color: #888; border-color: #444; }
-        """)
-        self._cancel_btn.clicked.connect(self.cancelled.emit)
-
-        self._save_btn = QPushButton("✓  Save")
-        self._save_btn.setFixedHeight(36)
-        self._save_btn.setStyleSheet("""
-            QPushButton {
-                background: #9b59b6; color: #FFF;
-                border: none; border-radius: 6px;
-                font-size: 13px; font-weight: 700;
-            }
-            QPushButton:hover { background: #a96cc7; }
-            QPushButton:disabled { background: #2A1A3A; color: #555; }
-        """)
-        self._save_btn.clicked.connect(self._save)
-
-        btn_row.addWidget(self._cancel_btn)
-        btn_row.addWidget(self._save_btn)
-        lay.addLayout(btn_row)
-
-    # ── Populate universe dropdown ──────────────────────────
+    # ── Universe dropdown ──────────────────────────────────
 
     def set_universes(self, universes: list):
         self._universes = universes
@@ -532,21 +520,19 @@ class CharacterFormPanel(QFrame):
         self._status.setText("")
         self._save_btn.setEnabled(True)
 
-        # Populate universe combo
         for i in range(self.universe_combo.count()):
             if self.universe_combo.itemData(i) == data["universe_id"]:
                 self.universe_combo.setCurrentIndex(i)
                 break
 
         self.name_input.setText(data["name"])
-        self.species_input.setText(data["species"] if data["species"] != "—" else "")
+        self.species_input.setText("" if data["species"] == "—" else data["species"])
         self.titles_input.setText(data["titles"])
         self.aliases_input.setText(data["aliases"])
         self.personality_input.setPlainText(data["personality"])
         self.motivations_input.setPlainText(data["motivations"])
         self.goals_input.setPlainText(data["goals"])
         self.ideology_input.setPlainText(data["ideology"])
-
         idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
         self.canon_combo.setCurrentIndex(idx)
         self.score_slider.setValue(data["importance_score"])
@@ -567,6 +553,11 @@ class CharacterFormPanel(QFrame):
         if self.universe_combo.count():
             self.universe_combo.setCurrentIndex(0)
 
+    def _cancel(self):
+        """Close immediately."""
+        self.hide()
+        self.cancelled.emit()
+
     def _save(self):
         name = self.name_input.text().strip()
         if not name:
@@ -575,7 +566,7 @@ class CharacterFormPanel(QFrame):
 
         uid = self.universe_combo.currentData()
         if uid is None:
-            self._status.setText("⚠  Select a universe!")
+            self._status.setText("⚠  Universe select karein!")
             return
 
         payload = {
@@ -604,9 +595,10 @@ class CharacterFormPanel(QFrame):
         self._worker.start()
 
     def _on_saved(self, _):
-        self._status.setText("✓  Saved!")
+        self.hide()                 # close immediately
         self._save_btn.setEnabled(True)
-        self.saved.emit()
+        self._status.setText("")
+        self.saved.emit()           # parent reloads cards
 
     def _on_error(self, msg: str):
         self._status.setText(f"⚠  {msg}")
@@ -622,13 +614,13 @@ class CharacterFormPanel(QFrame):
 class CharactersViewWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self._load_worker    = None
-        self._uni_worker     = None
-        self._delete_worker  = None
-        self._characters     = []
-        self._universes      = []
+        self._load_worker   = None
+        self._uni_worker    = None
+        self._delete_worker = None
+        self._characters    = []
+        self._universes     = []
         self._setup_ui()
-        self._load_universes()   # load universe list first, then characters
+        self._load_universes()
 
     # ── Build UI ──────────────────────────────────────────
 
@@ -647,9 +639,7 @@ class CharactersViewWidget(QWidget):
         # ── Top bar ──
         top_bar = QFrame()
         top_bar.setFixedHeight(64)
-        top_bar.setStyleSheet(
-            "background: #0D0D0D; border-bottom: 1px solid #1A1A1A;"
-        )
+        top_bar.setStyleSheet("background: #0D0D0D; border-bottom: 1px solid #1A1A1A;")
         bar_lay = QHBoxLayout(top_bar)
         bar_lay.setContentsMargins(32, 0, 32, 0)
         bar_lay.setSpacing(12)
@@ -685,9 +675,7 @@ class CharactersViewWidget(QWidget):
         # ── Filter bar ──
         filter_bar = QFrame()
         filter_bar.setFixedHeight(52)
-        filter_bar.setStyleSheet(
-            "background: #0A0A0A; border-bottom: 1px solid #141414;"
-        )
+        filter_bar.setStyleSheet("background: #0A0A0A; border-bottom: 1px solid #141414;")
         f_lay = QHBoxLayout(filter_bar)
         f_lay.setContentsMargins(32, 0, 32, 0)
         f_lay.setSpacing(12)
@@ -743,12 +731,8 @@ class CharactersViewWidget(QWidget):
         self._scroll.setWidgetResizable(True)
         self._scroll.setStyleSheet("""
             QScrollArea { border: none; background: #0D0D0D; }
-            QScrollBar:vertical {
-                background: #111; width: 6px; border-radius: 3px;
-            }
-            QScrollBar::handle:vertical {
-                background: #2A2A2A; border-radius: 3px; min-height: 20px;
-            }
+            QScrollBar:vertical { background: #111; width: 6px; border-radius: 3px; }
+            QScrollBar::handle:vertical { background: #2A2A2A; border-radius: 3px; min-height: 20px; }
             QScrollBar::handle:vertical:hover { background: #9b59b6; }
         """)
 
@@ -766,23 +750,21 @@ class CharactersViewWidget(QWidget):
 
         # ── Right: Slide-in form panel ──
         self._form_panel = CharacterFormPanel(self)
-        self._form_panel.saved.connect(self._on_form_saved)
-        self._form_panel.cancelled.connect(self._close_panel)
+        self._form_panel.saved.connect(self._load_characters)   # just reload
         self._form_panel.hide()
         root.addWidget(self._form_panel)
 
-    # ── Universe loading (first boot) ─────────────────────
+    # ── Universe loading ───────────────────────────────────
 
     def _load_universes(self):
-        self._uni_worker = LoadUniversesWorker()
+        self._uni_worker = LoadUniversesForCharWorker()
         self._uni_worker.done.connect(self._on_universes_loaded)
-        self._uni_worker.error.connect(lambda e: self._load_characters())
+        self._uni_worker.error.connect(lambda _: self._load_characters())
         self._uni_worker.start()
 
     def _on_universes_loaded(self, universes: list):
         self._universes = universes
 
-        # Populate universe filter combo
         self._uni_combo.blockSignals(True)
         self._uni_combo.clear()
         self._uni_combo.addItem("All Universes", None)
@@ -790,9 +772,7 @@ class CharactersViewWidget(QWidget):
             self._uni_combo.addItem(u["name"], u["id"])
         self._uni_combo.blockSignals(False)
 
-        # Give universe list to form panel
         self._form_panel.set_universes(universes)
-
         self._load_characters()
 
     # ── Panel open/close ──────────────────────────────────
@@ -806,13 +786,6 @@ class CharactersViewWidget(QWidget):
         self._form_panel.set_universes(self._universes)
         self._form_panel.open_edit(data)
         self._form_panel.show()
-
-    def _close_panel(self):
-        self._form_panel.hide()
-
-    def _on_form_saved(self):
-        self._close_panel()
-        self._load_characters()
 
     # ── Load characters ───────────────────────────────────
 
@@ -835,9 +808,7 @@ class CharactersViewWidget(QWidget):
         self._characters = characters
         self._rebuild_cards()
         count = len(characters)
-        self._status_lbl.setText(
-            f"{count} character{'s' if count != 1 else ''}"
-        )
+        self._status_lbl.setText(f"{count} character{'s' if count != 1 else ''}")
         self._new_btn.setEnabled(True)
 
     def _on_error(self, msg: str):
@@ -853,9 +824,7 @@ class CharactersViewWidget(QWidget):
                 item.widget().deleteLater()
 
         if not self._characters:
-            empty = QLabel(
-                "Koi character nahi mila.\n\nUpar '＋ New Character' click karein."
-            )
+            empty = QLabel("Koi character nahi mila.\n\nUpar '＋ New Character' click karein.")
             empty.setAlignment(Qt.AlignCenter)
             empty.setStyleSheet(
                 "color: #222; font-size: 16px; padding: 60px; "
@@ -871,7 +840,6 @@ class CharactersViewWidget(QWidget):
             card.delete_clicked.connect(self._confirm_delete)
             self._cards_layout.addWidget(card, i // cols, i % cols)
 
-        # Fill last row with spacers
         remainder = len(self._characters) % cols
         if remainder:
             for j in range(cols - remainder):
@@ -892,9 +860,7 @@ class CharactersViewWidget(QWidget):
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
         dlg.setDefaultButton(QMessageBox.Cancel)
         dlg.setStyleSheet("""
-            QMessageBox {
-                background: #111; color: #CCC; font-size: 13px;
-            }
+            QMessageBox { background: #111; color: #CCC; font-size: 13px; }
             QPushButton {
                 background: #1A1A1A; color: #CCC;
                 border: 1px solid #333; border-radius: 6px;

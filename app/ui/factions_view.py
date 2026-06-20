@@ -1,72 +1,73 @@
 """
-app/ui/universes_view.py
-Zen AI — Universes CRUD Page (Phase 9B)
+app/ui/factions_view.py
+Zen AI — Factions CRUD Page (Phase 9D)
 
-Features:
-  - Card grid: all universes, color-coded by canon_status
-  - Filter bar: canon_status, search by name
-  - Slide-in right panel: Create / Edit form
-  - Delete confirmation dialog
-  - QThread workers for non-blocking DB ops
-
-Fixes (v2):
-  - Form panel has fixed header (✕ close) + fixed footer (Cancel/Save)
-  - Panel closes itself immediately on save/cancel — no more "stuck open"
+Pattern: same as universes_view.py (Log_11 standard)
+  - Fixed 60px header: [Title] [status] [Cancel] [✓ Save] [✕]
+  - Scrollable fields in middle
+  - Panel closes itself via self.hide() on save/cancel
 """
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QPushButton, QLineEdit, QComboBox,
-    QTextEdit, QSlider, QDialog, QDialogButtonBox,
-    QGridLayout, QSizePolicy, QMessageBox, QSpacerItem
+    QTextEdit, QSlider, QMessageBox, QGridLayout,
+    QSizePolicy
 )
-from PySide6.QtCore import Qt, QThread, Signal, QPropertyAnimation, QEasingCurve, QRect
-from PySide6.QtGui import QFont, QIntValidator
+from PySide6.QtCore import Qt, QThread, Signal
 
 from app.database.db_init import get_session
 from app.database import crud
 
+
 # ─────────────────────────────────────────────────────────
-# Canon status colours
+# Constants
 # ─────────────────────────────────────────────────────────
 CANON_COLORS = {
-    "canon":        "#00ADB5",
+    "canon":        "#f39c12",   # orange/gold — distinct from Universes/Characters
     "non_canon":    "#e74c3c",
     "alt_timeline": "#9b59b6",
-    "experimental": "#f39c12",
+    "experimental": "#3498db",
 }
 CANON_OPTIONS = ["canon", "non_canon", "alt_timeline", "experimental"]
+ACCENT = "#f39c12"   # gold theme for Factions
 
 
 # ─────────────────────────────────────────────────────────
 # Workers
 # ─────────────────────────────────────────────────────────
-class LoadUniversesWorker(QThread):
+class LoadFactionsWorker(QThread):
     done  = Signal(list)
     error = Signal(str)
 
-    def __init__(self, canon_filter=None, name_filter=None):
+    def __init__(self, universe_id=None, canon_filter=None, name_filter=None):
         super().__init__()
+        self.universe_id  = universe_id
         self.canon_filter = canon_filter
         self.name_filter  = name_filter
 
     def run(self):
         try:
             session = get_session()
-            unis = crud.list_universes(
+            facs = crud.list_factions(
                 session,
+                universe_id=self.universe_id,
                 canon_status=self.canon_filter or None,
                 name_contains=self.name_filter or None,
             )
             result = [
                 {
-                    "id":          u.id,
-                    "name":        u.name,
-                    "description": u.description or "",
-                    "canon_status": u.canon_status,
-                    "importance_score": u.importance_score,
+                    "id":               f.id,
+                    "name":             f.name,
+                    "description":      f.description or "",
+                    "ideology":         f.ideology or "",
+                    "canon_status":     f.canon_status,
+                    "importance_score": f.importance_score,
+                    "universe_id":      f.universe_id,
+                    "universe_name":    f.universe.name if f.universe else "—",
+                    "founder_id":       f.founder_id,
                 }
-                for u in unis
+                for f in facs
             ]
             session.close()
             self.done.emit(result)
@@ -74,40 +75,55 @@ class LoadUniversesWorker(QThread):
             self.error.emit(str(e))
 
 
-class SaveUniverseWorker(QThread):
-    done  = Signal(str)
+class LoadUniversesForFacWorker(QThread):
+    done  = Signal(list)
     error = Signal(str)
-
-    def __init__(self, data: dict, universe_id: int = None):
-        super().__init__()
-        self.data        = data
-        self.universe_id = universe_id
 
     def run(self):
         try:
             session = get_session()
-            if self.universe_id:
-                crud.update_universe(session, self.universe_id, **self.data)
+            unis = crud.list_universes(session)
+            result = [{"id": u.id, "name": u.name} for u in unis]
+            session.close()
+            self.done.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class SaveFactionWorker(QThread):
+    done  = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, data: dict, faction_id: int = None):
+        super().__init__()
+        self.data       = data
+        self.faction_id = faction_id
+
+    def run(self):
+        try:
+            session = get_session()
+            if self.faction_id:
+                crud.update_faction(session, self.faction_id, **self.data)
             else:
-                crud.create_universe(session, **self.data)
+                crud.create_faction(session, **self.data)
             session.close()
             self.done.emit("ok")
         except Exception as e:
             self.error.emit(str(e))
 
 
-class DeleteUniverseWorker(QThread):
+class DeleteFactionWorker(QThread):
     done  = Signal(str)
     error = Signal(str)
 
-    def __init__(self, universe_id: int):
+    def __init__(self, faction_id: int):
         super().__init__()
-        self.universe_id = universe_id
+        self.faction_id = faction_id
 
     def run(self):
         try:
             session = get_session()
-            crud.delete_universe(session, self.universe_id)
+            crud.delete_faction(session, self.faction_id)
             session.close()
             self.done.emit("ok")
         except Exception as e:
@@ -115,16 +131,16 @@ class DeleteUniverseWorker(QThread):
 
 
 # ─────────────────────────────────────────────────────────
-# Universe Card
+# Faction Card
 # ─────────────────────────────────────────────────────────
-class UniverseCard(QFrame):
+class FactionCard(QFrame):
     edit_clicked   = Signal(dict)
     delete_clicked = Signal(dict)
 
     def __init__(self, data: dict):
         super().__init__()
         self.data  = data
-        color = CANON_COLORS.get(data["canon_status"], "#00ADB5")
+        color = CANON_COLORS.get(data["canon_status"], ACCENT)
 
         self.setFixedHeight(160)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -148,46 +164,62 @@ class UniverseCard(QFrame):
 
         # ── Header row ──
         hdr = QHBoxLayout()
-
-        name_lbl = QLabel(f"🌐  {data['name']}")
+        name_lbl = QLabel(f"⚔  {data['name']}")
         name_lbl.setStyleSheet(
             "color: #EEEEEE; font-size: 15px; font-weight: 700; "
             "background: transparent; border: none;"
         )
-
         canon_lbl = QLabel(data["canon_status"].replace("_", " ").upper())
         canon_lbl.setStyleSheet(
             f"color: {color}; font-size: 9px; font-weight: 700; "
             f"background: {color}18; border: 1px solid {color}44; "
             "border-radius: 4px; padding: 2px 8px;"
         )
-
         hdr.addWidget(name_lbl)
         hdr.addStretch()
         hdr.addWidget(canon_lbl)
         lay.addLayout(hdr)
 
-        # ── Description ──
-        desc = data["description"][:90] + "…" if len(data["description"]) > 90 else data["description"]
-        desc_lbl = QLabel(desc or "No description.")
-        desc_lbl.setWordWrap(True)
-        desc_lbl.setStyleSheet(
-            "color: #555; font-size: 12px; background: transparent; border: none;"
+        # ── Universe ──
+        uni_lbl = QLabel(f"🌐 {data['universe_name']}")
+        uni_lbl.setStyleSheet(
+            "color: #444; font-size: 11px; background: transparent; border: none;"
         )
-        lay.addWidget(desc_lbl)
+        lay.addWidget(uni_lbl)
+
+        # ── Ideology snippet ──
+        ideology = data.get("ideology", "")
+        if ideology:
+            snippet = (ideology[:70] + "…") if len(ideology) > 70 else ideology
+            id_lbl = QLabel(f"💡 {snippet}")
+            id_lbl.setWordWrap(True)
+            id_lbl.setStyleSheet(
+                f"color: {color}66; font-size: 11px; background: transparent; border: none;"
+            )
+            lay.addWidget(id_lbl)
+        else:
+            # Description fallback
+            desc = data.get("description", "")
+            if desc:
+                snippet = (desc[:80] + "…") if len(desc) > 80 else desc
+                d_lbl = QLabel(snippet)
+                d_lbl.setWordWrap(True)
+                d_lbl.setStyleSheet(
+                    "color: #404040; font-size: 11px; background: transparent; border: none;"
+                )
+                lay.addWidget(d_lbl)
 
         lay.addStretch()
 
-        # ── Footer row ──
+        # ── Footer ──
         foot = QHBoxLayout()
-        score_lbl = QLabel(f"★ Importance: {data['importance_score']}")
+        score_lbl = QLabel(f"★ {data['importance_score']}")
         score_lbl.setStyleSheet(
             f"color: {color}88; font-size: 11px; background: transparent; border: none;"
         )
-
         edit_btn = QPushButton("✎  Edit")
         edit_btn.setFixedSize(70, 26)
-        edit_btn.setStyleSheet(self._action_btn("#00ADB5"))
+        edit_btn.setStyleSheet(self._action_btn(ACCENT))
         edit_btn.clicked.connect(lambda: self.edit_clicked.emit(self.data))
 
         del_btn = QPushButton("✕  Delete")
@@ -206,34 +238,28 @@ class UniverseCard(QFrame):
     def _action_btn(color: str) -> str:
         return f"""
             QPushButton {{
-                background: transparent;
-                color: {color};
-                border: 1px solid {color}44;
-                border-radius: 5px;
-                font-size: 11px;
-                font-weight: 600;
+                background: transparent; color: {color};
+                border: 1px solid {color}44; border-radius: 5px;
+                font-size: 11px; font-weight: 600;
             }}
-            QPushButton:hover {{
-                background: {color}18;
-                border-color: {color};
-            }}
+            QPushButton:hover {{ background: {color}18; border-color: {color}; }}
         """
 
 
 # ─────────────────────────────────────────────────────────
-# Slide-in Form Panel  (FIXED: header + footer always visible)
+# Faction Form Panel  (Log_11 standard panel design)
 # ─────────────────────────────────────────────────────────
-class UniverseFormPanel(QFrame):
-    """Right-side slide-in panel for Create / Edit."""
+class FactionFormPanel(QFrame):
     saved     = Signal()
     cancelled = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._edit_id = None
-        self._worker  = None
+        self._edit_id   = None
+        self._worker    = None
+        self._universes = []
 
-        self.setFixedWidth(380)
+        self.setFixedWidth(390)
         self.setStyleSheet("QFrame { background: #111111; border-left: 1px solid #1E1E1E; }")
 
         main = QVBoxLayout(self)
@@ -248,9 +274,9 @@ class UniverseFormPanel(QFrame):
         h_lay.setContentsMargins(20, 0, 12, 0)
         h_lay.setSpacing(8)
 
-        self._title = QLabel("New Universe")
+        self._title = QLabel("New Faction")
         self._title.setStyleSheet(
-            "color: #00ADB5; font-size: 15px; font-weight: 800; "
+            f"color: {ACCENT}; font-size: 15px; font-weight: 800; "
             "background: transparent; border: none;"
         )
 
@@ -275,14 +301,14 @@ class UniverseFormPanel(QFrame):
         self._save_btn = QPushButton("✓  Save")
         self._save_btn.setFixedHeight(30)
         self._save_btn.setFixedWidth(80)
-        self._save_btn.setStyleSheet("""
-            QPushButton {
-                background: #00ADB5; color: #000;
+        self._save_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {ACCENT}; color: #000;
                 border: none; border-radius: 5px;
                 font-size: 12px; font-weight: 700;
-            }
-            QPushButton:hover { background: #00C9D4; }
-            QPushButton:disabled { background: #1A3A3A; color: #555; }
+            }}
+            QPushButton:hover {{ background: #f5ab35; }}
+            QPushButton:disabled {{ background: #3A2A00; color: #555; }}
         """)
         self._save_btn.clicked.connect(self._save)
 
@@ -318,8 +344,8 @@ class UniverseFormPanel(QFrame):
         fw = QWidget()
         fw.setStyleSheet("background: #111111;")
         lay = QVBoxLayout(fw)
-        lay.setContentsMargins(24, 20, 24, 20)
-        lay.setSpacing(12)
+        lay.setContentsMargins(24, 18, 24, 18)
+        lay.setSpacing(10)
 
         def _lbl(t):
             l = QLabel(t)
@@ -329,32 +355,49 @@ class UniverseFormPanel(QFrame):
             )
             return l
 
-        fs = """
-            QLineEdit, QTextEdit, QComboBox {
+        fs = f"""
+            QLineEdit, QTextEdit, QComboBox {{
                 background: #0D0D0D; color: #CCCCCC;
                 border: 1px solid #222; border-radius: 6px;
-                padding: 8px 12px; font-size: 13px;
-            }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus { border-color: #00ADB5; }
-            QComboBox QAbstractItemView {
+                padding: 7px 12px; font-size: 13px;
+            }}
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {{ border-color: {ACCENT}; }}
+            QComboBox QAbstractItemView {{
                 background: #111; color: #CCC;
-                selection-background-color: #00ADB5;
-            }
+                selection-background-color: {ACCENT};
+            }}
         """
 
-        lay.addWidget(_lbl("NAME  *"))
+        # Universe
+        lay.addWidget(_lbl("UNIVERSE  *"))
+        self.universe_combo = QComboBox()
+        self.universe_combo.setStyleSheet(fs)
+        lay.addWidget(self.universe_combo)
+
+        # Name
+        lay.addWidget(_lbl("FACTION NAME  *"))
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("e.g.  Zendrix Prime")
+        self.name_input.setPlaceholderText("e.g.  The Shadow Council")
         self.name_input.setStyleSheet(fs)
         lay.addWidget(self.name_input)
 
+        # Description
         lay.addWidget(_lbl("DESCRIPTION"))
         self.desc_input = QTextEdit()
-        self.desc_input.setPlaceholderText("Universe ka brief description...")
-        self.desc_input.setFixedHeight(110)
+        self.desc_input.setPlaceholderText("Faction ki overall description...")
+        self.desc_input.setFixedHeight(80)
         self.desc_input.setStyleSheet(fs)
         lay.addWidget(self.desc_input)
 
+        # Ideology
+        lay.addWidget(_lbl("IDEOLOGY"))
+        self.ideology_input = QTextEdit()
+        self.ideology_input.setPlaceholderText("Faction ki beliefs, goals, worldview...")
+        self.ideology_input.setFixedHeight(72)
+        self.ideology_input.setStyleSheet(fs)
+        lay.addWidget(self.ideology_input)
+
+        # Canon Status
         lay.addWidget(_lbl("CANON STATUS"))
         self.canon_combo = QComboBox()
         for opt in CANON_OPTIONS:
@@ -362,20 +405,21 @@ class UniverseFormPanel(QFrame):
         self.canon_combo.setStyleSheet(fs)
         lay.addWidget(self.canon_combo)
 
+        # Importance Score
         lay.addWidget(_lbl("IMPORTANCE SCORE  (1 – 100)"))
         score_row = QHBoxLayout()
         self.score_slider = QSlider(Qt.Horizontal)
         self.score_slider.setRange(1, 100)
         self.score_slider.setValue(50)
-        self.score_slider.setStyleSheet("""
-            QSlider::groove:horizontal { background: #1A1A1A; height: 6px; border-radius: 3px; }
-            QSlider::handle:horizontal { background: #00ADB5; width: 16px; height: 16px; margin: -5px 0; border-radius: 8px; }
-            QSlider::sub-page:horizontal { background: #00ADB5; border-radius: 3px; }
+        self.score_slider.setStyleSheet(f"""
+            QSlider::groove:horizontal {{ background: #1A1A1A; height: 6px; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: {ACCENT}; width: 16px; height: 16px; margin: -5px 0; border-radius: 8px; }}
+            QSlider::sub-page:horizontal {{ background: {ACCENT}; border-radius: 3px; }}
         """)
         self.score_val = QLabel("50")
         self.score_val.setFixedWidth(30)
         self.score_val.setStyleSheet(
-            "color: #00ADB5; font-size: 13px; font-weight: 700; background: transparent; border: none;"
+            f"color: {ACCENT}; font-size: 13px; font-weight: 700; background: transparent; border: none;"
         )
         self.score_slider.valueChanged.connect(lambda v: self.score_val.setText(str(v)))
         score_row.addWidget(self.score_slider)
@@ -386,34 +430,50 @@ class UniverseFormPanel(QFrame):
         scroll.setWidget(fw)
         main.addWidget(scroll)
 
+    # ── Universe dropdown ──────────────────────────────────
 
-    # ── Public API ────────────────────────────────────────
+    def set_universes(self, universes: list):
+        self._universes = universes
+        self.universe_combo.clear()
+        for u in universes:
+            self.universe_combo.addItem(u["name"], u["id"])
+
+    # ── Public API ─────────────────────────────────────────
 
     def open_create(self):
         self._edit_id = None
-        self._title.setText("New Universe")
-        self.name_input.clear()
-        self.desc_input.clear()
-        self.canon_combo.setCurrentIndex(0)
-        self.score_slider.setValue(50)
+        self._title.setText("New Faction")
         self._status.setText("")
         self._save_btn.setEnabled(True)
+        self.name_input.clear()
+        self.desc_input.clear()
+        self.ideology_input.clear()
+        self.canon_combo.setCurrentIndex(0)
+        self.score_slider.setValue(50)
+        if self.universe_combo.count():
+            self.universe_combo.setCurrentIndex(0)
 
     def open_edit(self, data: dict):
         self._edit_id = data["id"]
-        self._title.setText("Edit Universe")
-        self.name_input.setText(data["name"])
-        self.desc_input.setPlainText(data["description"])
-        idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
-        self.canon_combo.setCurrentIndex(idx)
-        self.score_slider.setValue(data["importance_score"])
+        self._title.setText("Edit Faction")
         self._status.setText("")
         self._save_btn.setEnabled(True)
 
-    # ── Internal ──────────────────────────────────────────
+        for i in range(self.universe_combo.count()):
+            if self.universe_combo.itemData(i) == data["universe_id"]:
+                self.universe_combo.setCurrentIndex(i)
+                break
+
+        self.name_input.setText(data["name"])
+        self.desc_input.setPlainText(data["description"])
+        self.ideology_input.setPlainText(data["ideology"])
+        idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
+        self.canon_combo.setCurrentIndex(idx)
+        self.score_slider.setValue(data["importance_score"])
+
+    # ── Internal ───────────────────────────────────────────
 
     def _cancel(self):
-        """Close immediately — no signal chain delay."""
         self.hide()
         self.cancelled.emit()
 
@@ -423,9 +483,16 @@ class UniverseFormPanel(QFrame):
             self._status.setText("⚠  Name required!")
             return
 
+        uid = self.universe_combo.currentData()
+        if uid is None:
+            self._status.setText("⚠  Universe select karein!")
+            return
+
         payload = {
+            "universe_id":      uid,
             "name":             name,
-            "description":      self.desc_input.toPlainText().strip(),
+            "description":      self.desc_input.toPlainText().strip() or None,
+            "ideology":         self.ideology_input.toPlainText().strip() or None,
             "canon_status":     self.canon_combo.currentData(),
             "importance_score": self.score_slider.value(),
         }
@@ -433,39 +500,41 @@ class UniverseFormPanel(QFrame):
         self._save_btn.setEnabled(False)
         self._status.setText("Saving...")
         self._status.setStyleSheet(
-            "color: #00ADB5; font-size: 11px; background: transparent; border: none;"
+            f"color: {ACCENT}; font-size: 10px; background: transparent; border: none;"
         )
 
-        self._worker = SaveUniverseWorker(payload, self._edit_id)
+        self._worker = SaveFactionWorker(payload, self._edit_id)
         self._worker.done.connect(self._on_saved)
         self._worker.error.connect(self._on_error)
         self._worker.start()
 
     def _on_saved(self, _):
-        self.hide()                 # close immediately
+        self.hide()
         self._save_btn.setEnabled(True)
         self._status.setText("")
-        self.saved.emit()           # parent reloads cards
+        self.saved.emit()
 
     def _on_error(self, msg: str):
         self._status.setText(f"⚠  {msg}")
         self._status.setStyleSheet(
-            "color: #e74c3c; font-size: 11px; background: transparent; border: none;"
+            "color: #e74c3c; font-size: 10px; background: transparent; border: none;"
         )
         self._save_btn.setEnabled(True)
 
 
 # ─────────────────────────────────────────────────────────
-# Main Universes View
+# Main Factions View
 # ─────────────────────────────────────────────────────────
-class UniversesViewWidget(QWidget):
+class FactionsViewWidget(QWidget):
     def __init__(self):
         super().__init__()
         self._load_worker   = None
+        self._uni_worker    = None
         self._delete_worker = None
+        self._factions      = []
         self._universes     = []
         self._setup_ui()
-        self._load()
+        self._load_universes()
 
     # ── Build UI ──────────────────────────────────────────
 
@@ -489,9 +558,9 @@ class UniversesViewWidget(QWidget):
         bar_lay.setContentsMargins(32, 0, 32, 0)
         bar_lay.setSpacing(12)
 
-        title = QLabel("🌐  Universes")
+        title = QLabel("⚔  Factions")
         title.setStyleSheet(
-            "color: #00ADB5; font-size: 20px; font-weight: 900; "
+            f"color: {ACCENT}; font-size: 20px; font-weight: 900; "
             "letter-spacing: 2px; background: transparent; border: none;"
         )
         self._status_lbl = QLabel("")
@@ -499,15 +568,15 @@ class UniversesViewWidget(QWidget):
             "color: #333; font-size: 11px; background: transparent; border: none;"
         )
 
-        self._new_btn = QPushButton("＋  New Universe")
+        self._new_btn = QPushButton("＋  New Faction")
         self._new_btn.setFixedHeight(34)
-        self._new_btn.setStyleSheet("""
-            QPushButton {
-                background: #00ADB5; color: #000;
+        self._new_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {ACCENT}; color: #000;
                 border: none; border-radius: 7px;
                 padding: 0 18px; font-size: 13px; font-weight: 700;
-            }
-            QPushButton:hover { background: #00C9D4; }
+            }}
+            QPushButton:hover {{ background: #f5ab35; }}
         """)
         self._new_btn.clicked.connect(self._open_create)
 
@@ -526,40 +595,47 @@ class UniversesViewWidget(QWidget):
         f_lay.setSpacing(12)
 
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("🔍  Search universes...")
+        self._search_input.setPlaceholderText("🔍  Search factions...")
         self._search_input.setFixedHeight(30)
         self._search_input.setFixedWidth(220)
-        self._search_input.setStyleSheet("""
-            QLineEdit {
+        self._search_input.setStyleSheet(f"""
+            QLineEdit {{
                 background: #111; color: #CCC;
                 border: 1px solid #222; border-radius: 6px;
                 padding: 0 12px; font-size: 12px;
-            }
-            QLineEdit:focus { border-color: #00ADB5; }
+            }}
+            QLineEdit:focus {{ border-color: {ACCENT}; }}
         """)
         self._search_input.textChanged.connect(self._on_search_changed)
 
-        combo_style = """
-            QComboBox {
+        combo_style = f"""
+            QComboBox {{
                 background: #111; color: #888;
                 border: 1px solid #222; border-radius: 6px;
                 padding: 0 10px; font-size: 12px;
                 min-width: 140px; height: 30px;
-            }
-            QComboBox:hover { border-color: #333; }
-            QComboBox QAbstractItemView {
+            }}
+            QComboBox:hover {{ border-color: #333; }}
+            QComboBox QAbstractItemView {{
                 background: #111; color: #CCC;
-                selection-background-color: #00ADB5;
-            }
+                selection-background-color: {ACCENT};
+            }}
         """
+
+        self._uni_combo = QComboBox()
+        self._uni_combo.addItem("All Universes", None)
+        self._uni_combo.setStyleSheet(combo_style)
+        self._uni_combo.currentIndexChanged.connect(self._load_factions)
+
         self._canon_combo = QComboBox()
         self._canon_combo.addItem("All Canon Status", None)
         for opt in CANON_OPTIONS:
             self._canon_combo.addItem(opt.replace("_", " ").title(), opt)
         self._canon_combo.setStyleSheet(combo_style)
-        self._canon_combo.currentIndexChanged.connect(self._load)
+        self._canon_combo.currentIndexChanged.connect(self._load_factions)
 
         f_lay.addWidget(self._search_input)
+        f_lay.addWidget(self._uni_combo)
         f_lay.addWidget(self._canon_combo)
         f_lay.addStretch()
         left_lay.addWidget(filter_bar)
@@ -567,11 +643,11 @@ class UniversesViewWidget(QWidget):
         # ── Cards scroll area ──
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
-        self._scroll.setStyleSheet("""
-            QScrollArea { border: none; background: #0D0D0D; }
-            QScrollBar:vertical { background: #111; width: 6px; border-radius: 3px; }
-            QScrollBar::handle:vertical { background: #2A2A2A; border-radius: 3px; min-height: 20px; }
-            QScrollBar::handle:vertical:hover { background: #00ADB5; }
+        self._scroll.setStyleSheet(f"""
+            QScrollArea {{ border: none; background: #0D0D0D; }}
+            QScrollBar:vertical {{ background: #111; width: 6px; border-radius: 3px; }}
+            QScrollBar::handle:vertical {{ background: #2A2A2A; border-radius: 3px; min-height: 20px; }}
+            QScrollBar::handle:vertical:hover {{ background: {ACCENT}; }}
         """)
 
         self._cards_widget = QWidget()
@@ -587,42 +663,66 @@ class UniversesViewWidget(QWidget):
         root.addWidget(main_area)
 
         # ── Right: Slide-in form panel ──
-        self._form_panel = UniverseFormPanel(self)
-        self._form_panel.saved.connect(self._load)      # just reload cards
+        self._form_panel = FactionFormPanel(self)
+        self._form_panel.saved.connect(self._load_factions)
         self._form_panel.hide()
         root.addWidget(self._form_panel)
+
+    # ── Universe loading ───────────────────────────────────
+
+    def _load_universes(self):
+        self._uni_worker = LoadUniversesForFacWorker()
+        self._uni_worker.done.connect(self._on_universes_loaded)
+        self._uni_worker.error.connect(lambda _: self._load_factions())
+        self._uni_worker.start()
+
+    def _on_universes_loaded(self, universes: list):
+        self._universes = universes
+
+        self._uni_combo.blockSignals(True)
+        self._uni_combo.clear()
+        self._uni_combo.addItem("All Universes", None)
+        for u in universes:
+            self._uni_combo.addItem(u["name"], u["id"])
+        self._uni_combo.blockSignals(False)
+
+        self._form_panel.set_universes(universes)
+        self._load_factions()
 
     # ── Panel open/close ──────────────────────────────────
 
     def _open_create(self):
+        self._form_panel.set_universes(self._universes)
         self._form_panel.open_create()
         self._form_panel.show()
 
     def _open_edit(self, data: dict):
+        self._form_panel.set_universes(self._universes)
         self._form_panel.open_edit(data)
         self._form_panel.show()
 
-    # ── Load data ─────────────────────────────────────────
+    # ── Load factions ─────────────────────────────────────
 
-    def _load(self):
+    def _load_factions(self):
         self._status_lbl.setText("Loading...")
         self._new_btn.setEnabled(False)
+        uid          = self._uni_combo.currentData()
         canon_filter = self._canon_combo.currentData()
         name_filter  = self._search_input.text().strip()
-        self._load_worker = LoadUniversesWorker(canon_filter, name_filter)
+        self._load_worker = LoadFactionsWorker(uid, canon_filter, name_filter)
         self._load_worker.done.connect(self._on_loaded)
         self._load_worker.error.connect(self._on_error)
         self._load_worker.start()
 
     def _on_search_changed(self, text: str):
         if len(text) == 0 or len(text) >= 2:
-            self._load()
+            self._load_factions()
 
-    def _on_loaded(self, universes: list):
-        self._universes = universes
+    def _on_loaded(self, factions: list):
+        self._factions = factions
         self._rebuild_cards()
-        count = len(universes)
-        self._status_lbl.setText(f"{count} universe{'s' if count != 1 else ''}")
+        count = len(factions)
+        self._status_lbl.setText(f"{count} faction{'s' if count != 1 else ''}")
         self._new_btn.setEnabled(True)
 
     def _on_error(self, msg: str):
@@ -637,8 +737,8 @@ class UniversesViewWidget(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        if not self._universes:
-            empty = QLabel("Koi universe nahi mila.\n\nUpar '＋ New Universe' click karein.")
+        if not self._factions:
+            empty = QLabel("Koi faction nahi mili.\n\nUpar '＋ New Faction' click karein.")
             empty.setAlignment(Qt.AlignCenter)
             empty.setStyleSheet(
                 "color: #222; font-size: 16px; padding: 60px; "
@@ -648,25 +748,25 @@ class UniversesViewWidget(QWidget):
             return
 
         cols = 3
-        for i, data in enumerate(self._universes):
-            card = UniverseCard(data)
+        for i, data in enumerate(self._factions):
+            card = FactionCard(data)
             card.edit_clicked.connect(self._open_edit)
             card.delete_clicked.connect(self._confirm_delete)
             self._cards_layout.addWidget(card, i // cols, i % cols)
 
-        remainder = len(self._universes) % cols
+        remainder = len(self._factions) % cols
         if remainder:
             for j in range(cols - remainder):
                 spacer = QWidget()
                 spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-                row = len(self._universes) // cols
+                row = len(self._factions) // cols
                 self._cards_layout.addWidget(spacer, row, remainder + j)
 
     # ── Delete ────────────────────────────────────────────
 
     def _confirm_delete(self, data: dict):
         dlg = QMessageBox(self)
-        dlg.setWindowTitle("Delete Universe")
+        dlg.setWindowTitle("Delete Faction")
         dlg.setText(
             f"<b style='color:#e74c3c'>'{data['name']}'</b> delete karna chahte ho?<br>"
             "<small style='color:#666'>Yeh action undo nahi hogi.</small>"
@@ -684,7 +784,7 @@ class UniversesViewWidget(QWidget):
         """)
 
         if dlg.exec() == QMessageBox.Yes:
-            self._delete_worker = DeleteUniverseWorker(data["id"])
-            self._delete_worker.done.connect(lambda _: self._load())
+            self._delete_worker = DeleteFactionWorker(data["id"])
+            self._delete_worker.done.connect(lambda _: self._load_factions())
             self._delete_worker.error.connect(self._on_error)
             self._delete_worker.start()
