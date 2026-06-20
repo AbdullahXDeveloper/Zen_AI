@@ -13,7 +13,8 @@ from app.ui.wiki_view import WikiViewWidget
 from app.ui.ai_chat_view import AIChatWidget
 from app.ui.graph_view import GraphViewWidget        # ← Module 8b: Graph
 from app.ui.timeline_view import TimelineViewWidget  # ← Module 8b: Timeline
-from app.ui.dashboard_view import DashboardWidget   # ← Module 9a: Dashboard
+from app.ui.dashboard_view import DashboardWidget    # ← Phase 9A: Dashboard
+from app.ui.universes_view import UniversesViewWidget  # ← Phase 9B: Universes
 
 
 class ZenMainWindow(QMainWindow):
@@ -60,7 +61,7 @@ class ZenMainWindow(QMainWindow):
         # (name, icon, widget_factory or None for placeholder)
         self._pages = [
             ("Dashboard",         "◈", DashboardWidget),
-            ("Universes",         "🌐", None),
+            ("Universes",         "🌐", UniversesViewWidget),
             ("Characters",        "👤", None),
             ("Factions",          "⚔", None),
             ("Locations",         "📍", None),
@@ -123,7 +124,7 @@ class ZenMainWindow(QMainWindow):
         sidebar_layout.addStretch()
 
         # Version tag at bottom
-        ver_lbl = QLabel("v0.9a")
+        ver_lbl = QLabel("v0.9b")
         ver_lbl.setStyleSheet("color: #222; font-size: 10px; border: none;")
         ver_lbl.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(ver_lbl)
