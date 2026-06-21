@@ -23,6 +23,8 @@ from PySide6.QtGui import QFont, QIntValidator, QIcon
 
 from app.database.db_init import get_session
 from app.database import crud
+from app.ui.entity_links_widget import EntityLinksWidget
+
 from app.database.models import NODE_TYPES, NODE_ICONS
 from app.utils.dashboard_generator import generate_entity_dashboard
 
@@ -553,7 +555,7 @@ class LoadTreeWorker(QThread):
 
 
 class SaveNodeWorker(QThread):
-    done  = Signal(str)
+    done  = Signal(int)
     error = Signal(str)
 
     def __init__(self, data: dict, node_id: int = None):
@@ -565,16 +567,19 @@ class SaveNodeWorker(QThread):
         try:
             session = get_session()
             if self.node_id:
-                crud.update_cosmic_node(session, self.node_id, **self.data)
+                node = crud.update_cosmic_node(session, self.node_id, **self.data)
+                final_id = self.node_id
             else:
-                crud.create_cosmic_node(session, **self.data)
+                node = crud.create_cosmic_node(session, **self.data)
+                final_id = node.id
             session.close()
-            self.done.emit("ok")
+            self.done.emit(final_id)
         except Exception as e:
             import traceback; traceback.print_exc()
             self.error.emit(str(e))
         finally:
             if 'session' in locals() and session: session.close()
+
 
 
 class DeleteNodeWorker(QThread):
@@ -760,6 +765,12 @@ class NodeFormPanel(QFrame):
         score_row.addWidget(self.score_slider)
         score_row.addWidget(self.score_val)
         lay.addLayout(score_row)
+
+        # Entity Links
+        lay.addSpacing(8)
+        self.entity_links = EntityLinksWidget("cosmic_node")
+        lay.addWidget(self.entity_links)
+
         lay.addStretch()
 
         scroll.setWidget(fw)
@@ -780,6 +791,7 @@ class NodeFormPanel(QFrame):
             self._parent_lbl.setVisible(True)
         else:
             self._parent_lbl.setVisible(False)
+        self.entity_links.set_pending_entity()
 
     def open_edit(self, data: dict):
         self._edit_id   = data["id"]
@@ -795,6 +807,7 @@ class NodeFormPanel(QFrame):
         self._status.setText("")
         self._save_btn.setEnabled(True)
         self._parent_lbl.setVisible(False)
+        self.entity_links.load_for_entity(data["id"])
 
     def _cancel(self):
         self.hide()
@@ -823,7 +836,8 @@ class NodeFormPanel(QFrame):
         self._worker.error.connect(self._on_error)
         self._worker.start()
 
-    def _on_saved(self, _):
+    def _on_saved(self, node_id: int):
+        self.entity_links.flush_pending_links(node_id)
         self.hide()
         self._save_btn.setEnabled(True)
         self._status.setText("")

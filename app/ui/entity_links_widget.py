@@ -1,19 +1,20 @@
 """
-app/ui/story_links_widget.py
-Zen AI — Reusable Story Links Widget
+app/ui/entity_links_widget.py
+Zen AI — Reusable Entity Links Widget
 
 Embeds in any entity form panel to allow linking that entity
-to any Story (across any universe), with a custom link name.
+to any other entity (across any universe), with a custom link name.
 
 Usage:
-    widget = StoryLinksWidget(entity_type="character")
-    widget.load_links(entity_id=5)       # call after entity is saved
-    widget.save_links(entity_id=5)       # call on form save (handles new links)
+    widget = EntityLinksWidget(entity_type="character")
+    widget.load_for_entity(entity_id=5)       # call after entity is saved
+    widget.set_pending_entity()               # call on "new" entity
+    widget.flush_pending_links(entity_id=5)   # call on form save (handles new links)
 """
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QPushButton, QLineEdit, QComboBox, QScrollArea, QSizePolicy
+    QPushButton, QLineEdit, QComboBox, QSizePolicy
 )
 from PySide6.QtCore import Qt, QThread, Signal
 
@@ -22,11 +23,16 @@ from app.database import crud
 
 ACCENT = "#00ADB5"
 
-MODE_ICONS = {
-    "canon": "📖", "non_canon": "📝", "what_if": "🔮",
-    "alt_timeline": "🌀", "rpg_sim": "🎲",
+# Icons based on target entity type
+ENTITY_ICONS = {
+    "character": "👤",
+    "faction": "🛡️",
+    "location": "🌍",
+    "event": "⚡",
+    "artifact": "💎",
+    "story": "📖",
+    "cosmic_node": "🌌"
 }
-
 
 # ─────────────────────────────────────────────────────────
 # Workers
@@ -44,10 +50,9 @@ class LoadLinksWorker(QThread):
     def run(self):
         try:
             session = get_session()
-            links = crud.list_story_links(session, self.entity_type, self.entity_id)
-            all_stories = crud.list_all_stories_enriched(session)
+            links = crud.list_entity_links(session, self.entity_type, self.entity_id)
             session.close()
-            self.done.emit([links, all_stories])
+            self.done.emit(links)
         except Exception as e:
             import traceback; traceback.print_exc()
             self.error.emit(str(e))
@@ -59,22 +64,24 @@ class SaveLinkWorker(QThread):
     done  = Signal(int)   # emits new link id
     error = Signal(str)
 
-    def __init__(self, entity_type: str, entity_id: int,
-                 story_id: int, link_name: str):
+    def __init__(self, source_type: str, source_id: int,
+                 target_type: str, target_id: int, link_name: str):
         super().__init__()
-        self.entity_type = entity_type
-        self.entity_id   = entity_id
-        self.story_id    = story_id
+        self.source_type = source_type
+        self.source_id   = source_id
+        self.target_type = target_type
+        self.target_id   = target_id
         self.link_name   = link_name
 
     def run(self):
         try:
             session = get_session()
-            lnk = crud.create_story_link(
+            lnk = crud.create_entity_link(
                 session,
-                source_entity_type=self.entity_type,
-                source_entity_id=self.entity_id,
-                story_id=self.story_id,
+                source_entity_type=self.source_type,
+                source_entity_id=self.source_id,
+                target_entity_type=self.target_type,
+                target_entity_id=self.target_id,
                 link_name=self.link_name or None,
             )
             session.close()
@@ -97,7 +104,7 @@ class DeleteLinkWorker(QThread):
     def run(self):
         try:
             session = get_session()
-            crud.delete_story_link(session, self.link_id)
+            crud.delete_entity_link(session, self.link_id)
             session.close()
             self.done.emit("ok")
         except Exception as e:
@@ -106,9 +113,29 @@ class DeleteLinkWorker(QThread):
         finally:
             if 'session' in locals() and session: session.close()
 
+class FetchEntitiesWorker(QThread):
+    done = Signal(list)
+    error = Signal(str)
+    
+    def __init__(self, entity_type: str):
+        super().__init__()
+        self.entity_type = entity_type
+        
+    def run(self):
+        try:
+            session = get_session()
+            entities = crud.get_all_entities_for_picker(session, self.entity_type)
+            session.close()
+            self.done.emit(entities)
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
+
 
 # ─────────────────────────────────────────────────────────
-# Link Row (a single linked story pill/row)
+# Link Row (a single linked entity pill/row)
 # ─────────────────────────────────────────────────────────
 
 class LinkRow(QFrame):
@@ -117,8 +144,10 @@ class LinkRow(QFrame):
     def __init__(self, link_data: dict):
         super().__init__()
         self.link_id = link_data["id"]
-        mode_icon    = MODE_ICONS.get(link_data.get("story_mode", ""), "📖")
-
+        
+        t_type = link_data.get("target_entity_type", "unknown")
+        icon = ENTITY_ICONS.get(t_type, "🔗")
+        
         self.setStyleSheet("""
             QFrame {
                 background: #0D0D0D;
@@ -133,8 +162,8 @@ class LinkRow(QFrame):
         row.setContentsMargins(10, 0, 8, 0)
         row.setSpacing(8)
 
-        # Story title
-        title_lbl = QLabel(f"{mode_icon} {link_data['story_title']}")
+        # Entity Name
+        title_lbl = QLabel(f"{icon} {link_data['target_name']}")
         title_lbl.setStyleSheet(
             "color: #CCCCCC; font-size: 12px; font-weight: 600; "
             "background: transparent; border: none;"
@@ -153,7 +182,6 @@ class LinkRow(QFrame):
         name = link_data.get("link_name", "")
         if name:
             name_lbl = QLabel(f'"{name}"')
-
             name_lbl.setStyleSheet(
                 "color: #555; font-size: 10px; font-style: italic; "
                 "background: transparent; border: none;"
@@ -188,13 +216,13 @@ class AddLinkForm(QFrame):
     link_saved  = Signal(dict)  # emits link data dict ready to display
     cancelled   = Signal()
 
-    def __init__(self, entity_type: str, entity_id: int,
-                 all_stories: list, parent=None):
+    def __init__(self, source_type: str, source_id: int, parent=None):
         super().__init__(parent)
-        self._entity_type = entity_type
-        self._entity_id   = entity_id
-        self._all_stories = all_stories
-        self._worker      = None
+        self._source_type = source_type
+        self._source_id   = source_id
+        self._main_widget = parent
+        self._all_target_entities = []
+
 
         self.setStyleSheet("""
             QFrame {
@@ -229,32 +257,34 @@ class AddLinkForm(QFrame):
             )
             return l
 
+        # Target Type
+        lay.addWidget(_lbl("TARGET ENTITY TYPE"))
+        self._type_combo = QComboBox()
+        self._type_combo.setStyleSheet(fs)
+        for t, icon in ENTITY_ICONS.items():
+            self._type_combo.addItem(f"{icon} {t.replace('_', ' ').title()}", t)
+        self._type_combo.currentIndexChanged.connect(self._on_type_changed)
+        lay.addWidget(self._type_combo)
+
         # Universe filter
         lay.addWidget(_lbl("FILTER BY UNIVERSE"))
         self._uni_combo = QComboBox()
         self._uni_combo.setStyleSheet(fs)
         self._uni_combo.addItem("All Universes", None)
-        # Build unique universe list from stories
-        seen = set()
-        for s in all_stories:
-            uid = s.get("universe_id")
-            if uid not in seen:
-                seen.add(uid)
-                self._uni_combo.addItem(s["universe_name"], uid)
-        self._uni_combo.currentIndexChanged.connect(self._filter_stories)
+        self._uni_combo.currentIndexChanged.connect(self._filter_entities)
         lay.addWidget(self._uni_combo)
 
-        # Story picker
-        lay.addWidget(_lbl("SELECT STORY  *"))
-        self._story_combo = QComboBox()
-        self._story_combo.setStyleSheet(fs)
-        self._populate_stories(None)
-        lay.addWidget(self._story_combo)
+        # Entity picker
+        lay.addWidget(_lbl("SELECT ENTITY  *"))
+        self._entity_combo = QComboBox()
+        self._entity_combo.setStyleSheet(fs)
+        self._entity_combo.addItem("— Select an entity —", None)
+        lay.addWidget(self._entity_combo)
 
         # Link name
         lay.addWidget(_lbl("LINK NAME  (optional)"))
         self._name_input = QLineEdit()
-        self._name_input.setPlaceholderText('e.g. "Origin Story", "Referenced In"')
+        self._name_input.setPlaceholderText('e.g. "Origin Story", "Home Planet"')
         self._name_input.setStyleSheet(fs)
         lay.addWidget(self._name_input)
 
@@ -300,40 +330,81 @@ class AddLinkForm(QFrame):
         btn_row.addWidget(save_btn)
         lay.addLayout(btn_row)
 
-    def _populate_stories(self, universe_id):
-        self._story_combo.clear()
-        self._story_combo.addItem("— Select a story —", None)
-        for s in self._all_stories:
-            if universe_id is None or s.get("universe_id") == universe_id:
-                icon = MODE_ICONS.get(s.get("story_mode", ""), "📖")
-                self._story_combo.addItem(
-                    f"{icon} {s['title']}  [{s['universe_name']}]", s["id"]
+        # Initial fetch
+        self._on_type_changed()
+
+    def _on_type_changed(self):
+        self._entity_combo.clear()
+        self._entity_combo.addItem("Loading...", None)
+        self._entity_combo.setEnabled(False)
+        self._save_btn.setEnabled(False)
+        
+        t_type = self._type_combo.currentData()
+        worker = FetchEntitiesWorker(t_type)
+        if self._main_widget and hasattr(self._main_widget, "_workers"):
+            self._main_widget._workers.append(worker)
+        else:
+            self._worker = worker  # fallback
+
+        worker.done.connect(self._on_entities_fetched)
+        worker.error.connect(lambda e: self._status.setText(f"Error: {e}"))
+        worker.start()
+
+        
+    def _on_entities_fetched(self, entities: list):
+        self._all_target_entities = entities
+        self._entity_combo.setEnabled(True)
+        self._save_btn.setEnabled(True)
+        
+        # Build Universe combo based on returned entities
+        self._uni_combo.blockSignals(True)
+        self._uni_combo.clear()
+        self._uni_combo.addItem("All Universes", None)
+        seen = set()
+        for e in entities:
+            uid = e.get("universe_id")
+            if uid is not None and uid not in seen:
+                seen.add(uid)
+                self._uni_combo.addItem(e["universe_name"], uid)
+        self._uni_combo.blockSignals(False)
+        
+        self._filter_entities()
+
+    def _filter_entities(self):
+        uid = self._uni_combo.currentData()
+        t_type = self._type_combo.currentData()
+        icon = ENTITY_ICONS.get(t_type, "🔗")
+        
+        self._entity_combo.clear()
+        self._entity_combo.addItem("— Select an entity —", None)
+        for e in self._all_target_entities:
+            if uid is None or e.get("universe_id") == uid:
+                self._entity_combo.addItem(
+                    f"{icon} {e['name']}  [{e['universe_name']}]", e["id"]
                 )
 
-    def _filter_stories(self):
-        uid = self._uni_combo.currentData()
-        self._populate_stories(uid)
-
     def _save(self):
-        story_id = self._story_combo.currentData()
-        if story_id is None:
-            self._status.setText("⚠  Story select karein!")
+        target_id = self._entity_combo.currentData()
+        if target_id is None:
+            self._status.setText("⚠  Target entity select karein!")
             return
 
+        target_type = self._type_combo.currentData()
         link_name = self._name_input.text().strip()
-        if self._entity_id is None:
-            # Entity not saved yet — signal with pending data
-            # Find story info
-            story_data = next(
-                (s for s in self._all_stories if s["id"] == story_id), {}
+        
+        if self._source_id is None:
+            # Source Entity not saved yet — signal with pending data
+            target_data = next(
+                (e for e in self._all_target_entities if e["id"] == target_id), {}
             )
             self.link_saved.emit({
-                "id":           None,  # pending
-                "story_id":     story_id,
-                "story_title":  story_data.get("title", ""),
-                "universe_name": story_data.get("universe_name", "—"),
-                "link_name":    link_name,
-                "story_mode":   story_data.get("story_mode", ""),
+                "id":                 None,  # pending
+                "target_entity_type": target_type,
+                "target_entity_id":   target_id,
+                "target_name":        target_data.get("name", ""),
+                "universe_name":      target_data.get("universe_name", "—"),
+                "link_name":          link_name,
+                "extra_meta":         target_data.get("extra_meta", ""),
                 "_pending": True,
             })
             return
@@ -343,24 +414,31 @@ class AddLinkForm(QFrame):
         self._status.setStyleSheet(
             f"color: {ACCENT}; font-size: 10px; background: transparent; border: none;"
         )
-        self._worker = SaveLinkWorker(
-            self._entity_type, self._entity_id, story_id, link_name
+        worker = SaveLinkWorker(
+            self._source_type, self._source_id, target_type, target_id, link_name
         )
-        story_data = next(
-            (s for s in self._all_stories if s["id"] == story_id), {}
+        if self._main_widget and hasattr(self._main_widget, "_workers"):
+            self._main_widget._workers.append(worker)
+        else:
+            self._save_worker = worker
+
+        target_data = next(
+            (e for e in self._all_target_entities if e["id"] == target_id), {}
         )
         self._pending_data = {
-            "story_id":     story_id,
-            "story_title":  story_data.get("title", ""),
-            "universe_name": story_data.get("universe_name", "—"),
-            "link_name":    link_name,
-            "story_mode":   story_data.get("story_mode", ""),
+            "target_entity_type": target_type,
+            "target_entity_id":   target_id,
+            "target_name":        target_data.get("name", ""),
+            "universe_name":      target_data.get("universe_name", "—"),
+            "link_name":          link_name,
+            "extra_meta":         target_data.get("extra_meta", ""),
         }
-        self._worker.done.connect(self._on_saved)
-        self._worker.error.connect(self._on_error)
-        self._worker.start()
+        worker.done.connect(self._on_saved)
+        worker.error.connect(self._on_error)
+        worker.start()
 
     def _on_saved(self, link_id: int):
+
         self._save_btn.setEnabled(True)
         self._status.setText("")
         data = dict(self._pending_data)
@@ -373,29 +451,28 @@ class AddLinkForm(QFrame):
 
 
 # ─────────────────────────────────────────────────────────
-# Main StoryLinksWidget
+# Main EntityLinksWidget
 # ─────────────────────────────────────────────────────────
 
-class StoryLinksWidget(QWidget):
+class EntityLinksWidget(QWidget):
     """
-    Reusable collapsible widget that shows and edits story links for any entity.
+    Reusable collapsible widget that shows and edits universal links for any entity.
 
     Usage:
-        self._links_widget = StoryLinksWidget("character")
+        self._links_widget = EntityLinksWidget("character")
         lay.addWidget(self._links_widget)
 
         # When opening an existing entity:
         self._links_widget.load_for_entity(entity_id)
 
         # When opening "new" entity form:
-        self._links_widget.set_pending_entity(None)
+        self._links_widget.set_pending_entity()
     """
 
     def __init__(self, entity_type: str, parent=None):
         super().__init__(parent)
         self._entity_type  = entity_type
         self._entity_id    = None
-        self._all_stories  = []
         self._links        = []         # list of link data dicts
         self._pending_links = []        # links queued before entity is saved
         self._workers      = []
@@ -408,7 +485,7 @@ class StoryLinksWidget(QWidget):
 
         # ── Section header ──
         hdr_row = QHBoxLayout()
-        hdr_lbl = QLabel("🔗  LINKED STORY ARTIFACTS")
+        hdr_lbl = QLabel("🔗  LINKED ENTITIES")
         hdr_lbl.setStyleSheet(
             "color: #333; font-size: 10px; font-weight: 700; "
             "letter-spacing: 1px; background: transparent; border: none;"
@@ -442,7 +519,7 @@ class StoryLinksWidget(QWidget):
         main.addLayout(self._links_container)
 
         # ── Empty state label ──
-        self._empty_lbl = QLabel("No story links yet.")
+        self._empty_lbl = QLabel("No links yet.")
         self._empty_lbl.setStyleSheet(
             "color: #2A2A2A; font-size: 11px; padding: 4px 0; "
             "background: transparent; border: none;"
@@ -457,7 +534,7 @@ class StoryLinksWidget(QWidget):
     # ── Public API ─────────────────────────────────────────
 
     def load_for_entity(self, entity_id: int):
-        """Call this when opening an existing entity to load its story links."""
+        """Call this when opening an existing entity to load its links."""
         self._entity_id = entity_id
         self._pending_links = []
         w = LoadLinksWorker(self._entity_type, entity_id)
@@ -472,12 +549,6 @@ class StoryLinksWidget(QWidget):
         self._pending_links = []
         self._clear_link_rows()
         self._update_empty_state()
-        # Still load all stories so the picker works
-        w = LoadLinksWorker(self._entity_type, -1)
-        w.done.connect(self._on_stories_loaded)
-        w.error.connect(lambda _: None)
-        w.start()
-        self._workers.append(w)
 
     def flush_pending_links(self, entity_id: int):
         """
@@ -488,7 +559,8 @@ class StoryLinksWidget(QWidget):
         for pd in self._pending_links:
             w = SaveLinkWorker(
                 self._entity_type, entity_id,
-                pd["story_id"], pd.get("link_name") or None
+                pd["target_entity_type"], pd["target_entity_id"],
+                pd.get("link_name") or None
             )
             w.done.connect(lambda _: None)
             w.error.connect(lambda _: None)
@@ -498,19 +570,12 @@ class StoryLinksWidget(QWidget):
 
     # ── Internal ───────────────────────────────────────────
 
-    def _on_loaded(self, payload: list):
-        links, all_stories = payload
-        self._all_stories = all_stories
+    def _on_loaded(self, links: list):
         self._links = links
         self._clear_link_rows()
         for lnk in links:
             self._add_link_row(lnk)
         self._update_empty_state()
-
-    def _on_stories_loaded(self, payload: list):
-        """Only called for new-entity mode — just grab the story list."""
-        _, all_stories = payload
-        self._all_stories = all_stories
 
     def _clear_link_rows(self):
         while self._links_container.count():
@@ -528,13 +593,10 @@ class StoryLinksWidget(QWidget):
         self._empty_lbl.setVisible(not has_links)
 
     def _show_add_form(self):
-        # Hide existing form if open
         self._hide_add_form()
-
-        self._add_form = AddLinkForm(
-            self._entity_type, self._entity_id, self._all_stories
-        )
+        self._add_form = AddLinkForm(self._entity_type, self._entity_id, parent=self)
         self._add_form.link_saved.connect(self._on_link_added)
+
         self._add_form.cancelled.connect(self._hide_add_form)
         self._form_container.addWidget(self._add_form)
         self._add_btn.setEnabled(False)
@@ -554,7 +616,6 @@ class StoryLinksWidget(QWidget):
         self._update_empty_state()
 
     def _on_remove(self, link_id: int):
-        # Remove from UI immediately
         for i in range(self._links_container.count()):
             item = self._links_container.itemAt(i)
             if item and item.widget() and isinstance(item.widget(), LinkRow):
@@ -564,11 +625,9 @@ class StoryLinksWidget(QWidget):
                         w.widget().deleteLater()
                     break
 
-        # Remove from internal list
         self._links = [l for l in self._links if l.get("id") != link_id]
         self._update_empty_state()
 
-        # Delete from DB (only if it has a real id)
         if link_id is not None:
             dw = DeleteLinkWorker(link_id)
             dw.done.connect(lambda _: None)

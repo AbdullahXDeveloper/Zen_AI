@@ -18,7 +18,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 
 from app.database.db_init import get_session
 from app.database import crud
-from app.ui.story_links_widget import StoryLinksWidget
+from app.ui.entity_links_widget import EntityLinksWidget
 
 
 # ─────────────────────────────────────────────────────────
@@ -444,7 +444,7 @@ class FactionFormPanel(QFrame):
         lay.addLayout(score_row)
         # Story Links
         lay.addSpacing(8)
-        self.story_links = StoryLinksWidget("faction")
+        self.story_links = EntityLinksWidget("faction")
         lay.addWidget(self.story_links)
 
         lay.addStretch()

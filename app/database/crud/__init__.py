@@ -169,12 +169,10 @@ from app.database.crud.cosmic_nodes import (
     delete_cosmic_node,
 )
 
-# Story Links (cross-entity story connections)
-from app.database.crud.story_links import (
-    create_story_link,
-    get_story_link,
-    list_story_links,
-    delete_story_link,
-    list_all_stories_enriched,
+# Entity Links (universal cross-entity connections)
+from app.database.crud.entity_links import (
+    create_entity_link,
+    list_entity_links,
+    delete_entity_link,
+    get_all_entities_for_picker,
 )
-
