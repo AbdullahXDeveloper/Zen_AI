@@ -930,6 +930,8 @@ class UniverseTreePanel(QWidget):
 
         # Tree widget
         self._tree = QTreeWidget()
+        from PySide6.QtWidgets import QStyleFactory
+        self._tree.setStyle(QStyleFactory.create("windows"))
         self._tree.setHeaderHidden(True)
         self._tree.setStyleSheet("""
             QTreeWidget {
@@ -950,14 +952,7 @@ class UniverseTreePanel(QWidget):
                 background: #1A3A2A;
                 color: #2ecc71;
             }
-            QTreeWidget::branch {
-                background: #0D0D0D;
-            }
-            QTreeWidget::branch:has-children:!has-siblings:closed,
-            QTreeWidget::branch:closed:has-children:has-siblings {
-                border-image: none;
-                image: none;
-            }
+
             QScrollBar:vertical { background: #111; width: 6px; }
             QScrollBar::handle:vertical { background: #2A2A2A; border-radius: 3px; min-height: 20px; }
             QScrollBar::handle:vertical:hover { background: #2ecc71; }
@@ -965,8 +960,18 @@ class UniverseTreePanel(QWidget):
         self._tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self._tree.customContextMenuRequested.connect(self._show_context_menu)
         self._tree.itemDoubleClicked.connect(self._on_item_double_clicked)
+        
+        # Override palette to ensure branches are visible in dark mode
+        pal = self._tree.palette()
+        from PySide6.QtGui import QPalette, QColor
+        pal.setColor(QPalette.WindowText, QColor("#555555"))  # Branch line color
+        pal.setColor(QPalette.Base, QColor("#0D0D0D"))
+        pal.setColor(QPalette.Text, QColor("#CCCCCC"))
+        self._tree.setPalette(pal)
+
         left_lay.addWidget(self._tree)
         root.addWidget(left, 1)
+
 
         # ── Right: Node form panel ──
         self._form_panel = NodeFormPanel(universe_id=-1)
@@ -1016,7 +1021,7 @@ class UniverseTreePanel(QWidget):
             # Make root nodes slightly bold
             if not n["parent_id"]:
                 f = item.font(0)
-                f.setWeight(700)
+                f.setBold(True)
                 item.setFont(0, f)
             items[n["id"]] = item
 

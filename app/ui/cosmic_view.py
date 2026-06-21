@@ -26,7 +26,7 @@ from app.database.db_init import get_session
 from app.database import crud
 from app.database.models import (
     Universe, RootEntity, Character, Faction,
-    Location, Artifact, Event, Story
+    Location, Artifact, Event, Story, RootEntityLink, CosmicNode
 )
 
 ACCENT     = "#00ADB5"
@@ -43,6 +43,7 @@ COLORS = {
     "artifact":  "#00BCD4",
     "event":     "#e74c3c",
     "story":     "#8e44ad",
+    "cosmic_node": "#FF5722",
 }
 SHAPES = {
     "root":      "star",
@@ -53,6 +54,7 @@ SHAPES = {
     "artifact":  "square",
     "event":     "ellipse",
     "story":     "database",
+    "cosmic_node": "dot",
 }
 
 
@@ -102,6 +104,9 @@ class CosmicDataWorker(QThread):
             if self.universe_filter:
                 unis = [u for u in unis if u.id == self.universe_filter]
 
+            links = session.query(RootEntityLink).filter_by(entity_type="universe").all()
+            link_map = {link.entity_id: link.root_entity_id for link in links}
+
             for u in unis:
                 nid = f"uni_{u.id}"
                 nodes.append({
@@ -115,13 +120,36 @@ class CosmicDataWorker(QThread):
                     "title": f"Universe: {u.name}\nCanon: {u.canon_status}\nScore: {u.importance_score}"
                 })
                 # Connect to nearest root entity or center
+                linked_root_id = link_map.get(u.id)
+                parent_node = f"root_{linked_root_id}" if linked_root_id else "center"
+
                 edges.append({
-                    "from": "center", "to": nid,
+                    "from": parent_node, "to": nid,
                     "color": {"color": COLORS["universe"] + "44", "highlight": COLORS["universe"]},
                     "width": 1.5
                 })
 
                 uid = u.id
+
+                # ── Cosmic Nodes (Internal hierarchy) ────────
+                c_nodes = session.query(CosmicNode).filter_by(universe_id=uid).all()
+                for cn in c_nodes:
+                    cnnid = f"cnode_{cn.id}"
+                    nodes.append({
+                        "id": cnnid, "label": cn.name, "group": "cosmic_node",
+                        "size": 20, "shape": SHAPES["cosmic_node"],
+                        "color": {"background": "#221000", "border": COLORS["cosmic_node"], "highlight": {"background": "#331A00", "border": "#FF8A65"}},
+                        "font": {"color": COLORS["cosmic_node"] + "aa", "size": 11},
+                        "title": f"Cosmic Node: {cn.name}\nType: {cn.node_type}\nUniverse: {u.name}"
+                    })
+                    
+                    c_parent = f"cnode_{cn.parent_id}" if cn.parent_id else nid
+                    edges.append({
+                        "from": c_parent, "to": cnnid,
+                        "color": {"color": COLORS["cosmic_node"] + "33", "highlight": COLORS["cosmic_node"] + "88"},
+                        "width": 1.0
+                    })
+
 
                 # ── Characters ────────────────────────
                 chars = session.query(Character).filter_by(universe_id=uid).all()
