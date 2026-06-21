@@ -125,8 +125,8 @@ class CosmicDataWorker(QThread):
 
                 edges.append({
                     "from": parent_node, "to": nid,
-                    "color": {"color": COLORS["universe"] + "44", "highlight": COLORS["universe"]},
-                    "width": 1.5
+                    "color": {"color": COLORS["universe"] + "BB", "highlight": COLORS["universe"]},
+                    "width": 2.5
                 })
 
                 uid = u.id
@@ -138,7 +138,7 @@ class CosmicDataWorker(QThread):
                     nodes.append({
                         "id": cnnid, "label": cn.name, "group": "cosmic_node",
                         "size": 20, "shape": SHAPES["cosmic_node"],
-                        "color": {"background": "#221000", "border": COLORS["cosmic_node"], "highlight": {"background": "#331A00", "border": "#FF8A65"}},
+                        "color": {"background": "#4D2400", "border": COLORS["cosmic_node"], "highlight": {"background": "#331A00", "border": "#FF8A65"}},
                         "font": {"color": COLORS["cosmic_node"] + "aa", "size": 11},
                         "title": f"Cosmic Node: {cn.name}\nType: {cn.node_type}\nUniverse: {u.name}"
                     })
@@ -146,8 +146,8 @@ class CosmicDataWorker(QThread):
                     c_parent = f"cnode_{cn.parent_id}" if cn.parent_id else nid
                     edges.append({
                         "from": c_parent, "to": cnnid,
-                        "color": {"color": COLORS["cosmic_node"] + "33", "highlight": COLORS["cosmic_node"] + "88"},
-                        "width": 1.0
+                        "color": {"color": COLORS["cosmic_node"] + "AA", "highlight": COLORS["cosmic_node"] + "88"},
+                        "width": 2.0
                     })
 
 
@@ -158,14 +158,14 @@ class CosmicDataWorker(QThread):
                     nodes.append({
                         "id": cnid, "label": c.name, "group": "character",
                         "size": 16, "shape": SHAPES["character"],
-                        "color": {"background": "#0D0010", "border": COLORS["character"], "highlight": {"background": "#1A0020", "border": "#C77DFF"}},
-                        "font": {"color": "#9b59b6aa", "size": 10},
+                        "color": {"background": "#2A0033", "border": COLORS["character"], "highlight": {"background": "#1A0020", "border": "#C77DFF"}},
+                        "font": {"color": "#9b59b6", "size": 10},
                         "title": f"Character: {c.name}\nSpecies: {c.species or '—'}\nUniverse: {u.name}"
                     })
                     edges.append({
                         "from": nid, "to": cnid,
-                        "color": {"color": COLORS["character"] + "22", "highlight": COLORS["character"] + "88"},
-                        "width": 0.8
+                        "color": {"color": COLORS["character"] + "99", "highlight": COLORS["character"] + "88"},
+                        "width": 1.8
                     })
 
                 # ── Factions ──────────────────────────
@@ -175,14 +175,14 @@ class CosmicDataWorker(QThread):
                     nodes.append({
                         "id": fnid, "label": f.name, "group": "faction",
                         "size": 16, "shape": SHAPES["faction"],
-                        "color": {"background": "#1A0E00", "border": COLORS["faction"], "highlight": {"background": "#2A1800", "border": "#FFCA6A"}},
-                        "font": {"color": "#f39c12aa", "size": 10},
+                        "color": {"background": "#402400", "border": COLORS["faction"], "highlight": {"background": "#2A1800", "border": "#FFCA6A"}},
+                        "font": {"color": "#f39c12", "size": 10},
                         "title": f"Faction: {f.name}\nUniverse: {u.name}"
                     })
                     edges.append({
                         "from": nid, "to": fnid,
-                        "color": {"color": COLORS["faction"] + "22", "highlight": COLORS["faction"] + "88"},
-                        "width": 0.8
+                        "color": {"color": COLORS["faction"] + "99", "highlight": COLORS["faction"] + "88"},
+                        "width": 1.8
                     })
 
                 # ── Locations ─────────────────────────
@@ -192,14 +192,14 @@ class CosmicDataWorker(QThread):
                     nodes.append({
                         "id": lnid, "label": loc.name, "group": "location",
                         "size": 14, "shape": SHAPES["location"],
-                        "color": {"background": "#001A07", "border": COLORS["location"], "highlight": {"background": "#00280A", "border": "#5EFF8F"}},
-                        "font": {"color": "#2ecc71aa", "size": 10},
+                        "color": {"background": "#004011", "border": COLORS["location"], "highlight": {"background": "#00280A", "border": "#5EFF8F"}},
+                        "font": {"color": "#2ecc71", "size": 10},
                         "title": f"Location: {loc.name}\nType: {loc.type or '—'}\nUniverse: {u.name}"
                     })
                     edges.append({
                         "from": nid, "to": lnid,
-                        "color": {"color": COLORS["location"] + "18", "highlight": COLORS["location"] + "55"},
-                        "width": 0.6
+                        "color": {"color": COLORS["location"] + "88", "highlight": COLORS["location"] + "55"},
+                        "width": 2.5
                     })
 
                 # ── Artifacts ─────────────────────────
@@ -209,14 +209,14 @@ class CosmicDataWorker(QThread):
                     nodes.append({
                         "id": anid, "label": a.name, "group": "artifact",
                         "size": 12, "shape": SHAPES["artifact"],
-                        "color": {"background": "#001216", "border": COLORS["artifact"], "highlight": {"background": "#001E24", "border": "#80FFFF"}},
-                        "font": {"color": "#00BCD4aa", "size": 9},
+                        "color": {"background": "#00333E", "border": COLORS["artifact"], "highlight": {"background": "#001E24", "border": "#80FFFF"}},
+                        "font": {"color": "#00BCD4", "size": 9},
                         "title": f"Artifact: {a.name}\nUniverse: {u.name}"
                     })
                     edges.append({
                         "from": nid, "to": anid,
-                        "color": {"color": COLORS["artifact"] + "15", "highlight": COLORS["artifact"] + "55"},
-                        "width": 0.5
+                        "color": {"color": COLORS["artifact"] + "77", "highlight": COLORS["artifact"] + "55"},
+                        "width": 1.2
                     })
 
                 # ── Events ────────────────────────────
@@ -226,14 +226,14 @@ class CosmicDataWorker(QThread):
                     nodes.append({
                         "id": enid, "label": e.name, "group": "event",
                         "size": 12, "shape": SHAPES["event"],
-                        "color": {"background": "#1A0000", "border": COLORS["event"], "highlight": {"background": "#2A0000", "border": "#FF7A7A"}},
-                        "font": {"color": "#e74c3caa", "size": 9},
+                        "color": {"background": "#400000", "border": COLORS["event"], "highlight": {"background": "#2A0000", "border": "#FF7A7A"}},
+                        "font": {"color": "#e74c3c", "size": 9},
                         "title": f"Event: {e.name}\nDate: {e.date_label or '—'}\nUniverse: {u.name}"
                     })
                     edges.append({
                         "from": nid, "to": enid,
-                        "color": {"color": COLORS["event"] + "15", "highlight": COLORS["event"] + "55"},
-                        "width": 0.5
+                        "color": {"color": COLORS["event"] + "77", "highlight": COLORS["event"] + "55"},
+                        "width": 1.2
                     })
 
             # ── Stories (Universe-independent) ────────
@@ -244,14 +244,14 @@ class CosmicDataWorker(QThread):
                 nodes.append({
                     "id": snid, "label": s.title, "group": "story",
                     "size": 12, "shape": SHAPES["story"],
-                    "color": {"background": "#0D0018", "border": COLORS["story"], "highlight": {"background": "#1A0030", "border": "#C77DFF"}},
-                    "font": {"color": "#8e44adaa", "size": 9},
+                    "color": {"background": "#29004D", "border": COLORS["story"], "highlight": {"background": "#1A0030", "border": "#C77DFF"}},
+                    "font": {"color": "#8e44ad", "size": 9},
                     "title": f"Story: {s.title}\nMode: {s.story_mode or '—'}"
                 })
                 edges.append({
                     "from": parent, "to": snid,
-                    "color": {"color": COLORS["story"] + "15", "highlight": COLORS["story"] + "55"},
-                    "width": 0.5, "dashes": True
+                    "color": {"color": COLORS["story"] + "77", "highlight": COLORS["story"] + "55"},
+                    "width": 1.2, "dashes": True
                 })
             # ── Universal Links (EntityLinks) ────────────
             from app.database.models import EntityLink
@@ -313,8 +313,6 @@ def _build_cosmic_html(vis_js: str, data: dict) -> str:
   #cosmos {{
     width: 100%;
     height: 100vh;
-    background: radial-gradient(ellipse at center,
-      #0A0A1A 0%, #050508 60%, #020203 100%);
   }}
   /* HUD overlay */
   #hud {{
@@ -419,19 +417,19 @@ var options = {{
   }},
   physics: {{
     enabled: true,
-    solver: 'forceAtlas2Based',
-    forceAtlas2Based: {{
-      gravitationalConstant: -80,
-      centralGravity: 0.012,
-      springLength: 120,
-      springConstant: 0.04,
-      damping: 0.5,
-      avoidOverlap: 0.6
+    solver: 'barnesHut',
+    barnesHut: {{
+      gravitationalConstant: -8000,
+      centralGravity: 0.1,
+      springLength: 300,
+      springConstant: 0.02,
+      damping: 0.1,
+      avoidOverlap: 1
     }},
     stabilization: {{
       enabled: true,
-      iterations: 600,
-      updateInterval: 30,
+      iterations: 1200,
+      updateInterval: 50,
       fit: true
     }}
   }},
