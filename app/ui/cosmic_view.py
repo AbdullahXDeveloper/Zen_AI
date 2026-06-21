@@ -417,18 +417,18 @@ var options = {{
   }},
   physics: {{
     enabled: true,
-    solver: 'barnesHut',
-    barnesHut: {{
-      gravitationalConstant: -8000,
-      centralGravity: 0.1,
-      springLength: 300,
-      springConstant: 0.02,
-      damping: 0.1,
-      avoidOverlap: 1
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {{
+      gravitationalConstant: -120,
+      centralGravity: 0.015,
+      springLength: 90,
+      springConstant: 0.08,
+      damping: 0.4,
+      avoidOverlap: 0.8
     }},
     stabilization: {{
       enabled: true,
-      iterations: 1200,
+      iterations: 800,
       updateInterval: 50,
       fit: true
     }}
