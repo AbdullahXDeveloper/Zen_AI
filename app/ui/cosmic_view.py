@@ -109,14 +109,15 @@ class CosmicDataWorker(QThread):
 
             for u in unis:
                 nid = f"uni_{u.id}"
+                c_color = {"canon": "#00ADB5", "non_canon": "#E74C3C", "alt_timeline": "#F39C12", "experimental": "#9B59B6"}.get(u.canon_status, COLORS["universe"])
                 nodes.append({
                     "id": nid,
                     "label": u.name,
                     "group": "universe",
                     "size": 28,
                     "shape": SHAPES["universe"],
-                    "color": {"background": "#001A1B", "border": COLORS["universe"], "highlight": {"background": "#002B2D", "border": "#00EEFF"}},
-                    "font": {"color": COLORS["universe"], "size": 12, "bold": True},
+                    "color": {"background": "#001A1B", "border": c_color, "highlight": {"background": "#002B2D", "border": "#FFFFFF"}},
+                    "font": {"color": c_color, "size": 12, "bold": True},
                     "title": f"Universe: {u.name}\nCanon: {u.canon_status}\nScore: {u.importance_score}"
                 })
                 # Connect to nearest root entity or center
@@ -522,7 +523,6 @@ class CosmicViewWidget(QWidget):
         title.setStyleSheet(f"color: {ACCENT}; font-size: 18px; font-weight: 900; letter-spacing: 2px; background: transparent; border: none;")
 
         self._uni_combo = QComboBox()
-        self._uni_combo.addItem("🌌  All Universes", None)
         self._uni_combo.setFixedWidth(220)
         self._uni_combo.setStyleSheet(f"""
             QComboBox {{
@@ -581,8 +581,21 @@ class CosmicViewWidget(QWidget):
         self._uni_loader = w
 
     def _on_unis(self, unis: list):
+        current_data = self._uni_combo.currentData()
+        self._uni_combo.blockSignals(True)
+        self._uni_combo.clear()
+        self._uni_combo.addItem("🌌  All Universes", None)
         for u in unis:
             self._uni_combo.addItem(f"🌐  {u['name']}", u["id"])
+        
+        idx = self._uni_combo.findData(current_data)
+        if idx >= 0:
+            self._uni_combo.setCurrentIndex(idx)
+        self._uni_combo.blockSignals(False)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._load_universes()
 
     def _show_placeholder(self):
         html = f"""<html><body style="background:#050505; color:#111;
