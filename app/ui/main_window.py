@@ -6,7 +6,7 @@ Graph View (Module 3) aur Timeline View (Module 4) ab integrate ho gaye hain.
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QPushButton, QStackedWidget, QLabel, QFrame
+    QPushButton, QStackedWidget, QLabel, QFrame, QScrollArea
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QIcon
@@ -53,11 +53,18 @@ class ZenMainWindow(QMainWindow):
         main_layout.setSpacing(0)
 
         # ── Sidebar ────────────────────────────────────
+        self.sidebar_scroll = QScrollArea()
+        self.sidebar_scroll.setFixedWidth(230)
+        self.sidebar_scroll.setWidgetResizable(True)
+        self.sidebar_scroll.setStyleSheet("""
+            QScrollArea { border: none; background: #111111; border-right: 1px solid #1E1E1E; }
+            QScrollBar:vertical { background: #0D0D0D; width: 6px; }
+            QScrollBar::handle:vertical { background: #2A2A2A; border-radius: 3px; }
+            QScrollBar::handle:vertical:hover { background: #00ADB5; }
+        """)
+
         self.sidebar = QFrame()
-        self.sidebar.setFixedWidth(220)
-        self.sidebar.setStyleSheet(
-            "background-color: #111111; border-right: 1px solid #1E1E1E;"
-        )
+        self.sidebar.setStyleSheet("background-color: #111111; border: none;")
         sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(12, 28, 12, 28)
         sidebar_layout.setSpacing(4)
@@ -172,7 +179,9 @@ class ZenMainWindow(QMainWindow):
         ver_lbl.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(ver_lbl)
 
-        main_layout.addWidget(self.sidebar)
+        self.sidebar_scroll.setWidget(self.sidebar)
+
+        main_layout.addWidget(self.sidebar_scroll)
         main_layout.addWidget(self.content_area)
 
         # Open dashboard by default

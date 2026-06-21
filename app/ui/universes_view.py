@@ -58,18 +58,25 @@ class LoadUniversesWorker(QThread):
                 canon_status=self.canon_filter or None,
                 name_contains=self.name_filter or None,
             )
-            result = [
-                {
+            result = []
+            for u in unis:
+                links = crud.list_root_entity_links(session, entity_type="universe", entity_id=u.id)
+                root_entity_id = links[0].root_entity_id if links else None
+                result.append({
                     "id":          u.id,
                     "name":        u.name,
                     "description": u.description or "",
                     "canon_status": u.canon_status,
                     "importance_score": u.importance_score,
-                }
-                for u in unis
-            ]
+                    "root_entity_id": root_entity_id,
+                })
+            
+            # Also fetch root entities for the dropdown
+            root_entities = crud.list_root_entities(session)
+            root_entities_data = [{"id": re.id, "name": re.name} for re in root_entities]
+            
             session.close()
-            self.done.emit(result)
+            self.done.emit([result, root_entities_data])
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -90,10 +97,23 @@ class SaveUniverseWorker(QThread):
     def run(self):
         try:
             session = get_session()
+            root_entity_id = self.data.pop("root_entity_id", None)
+            
             if self.universe_id:
                 crud.update_universe(session, self.universe_id, **self.data)
+                uid = self.universe_id
             else:
-                crud.create_universe(session, **self.data)
+                uni = crud.create_universe(session, **self.data)
+                uid = uni.id
+                
+            # Handle root entity link
+            existing_links = crud.list_root_entity_links(session, entity_type="universe", entity_id=uid)
+            for link in existing_links:
+                crud.delete_root_entity_link(session, link.id)
+                
+            if root_entity_id:
+                crud.create_root_entity_link(session, root_entity_id=root_entity_id, entity_type="universe", entity_id=uid)
+                
             session.close()
             self.done.emit("ok")
         except Exception as e:
@@ -374,6 +394,12 @@ class UniverseFormPanel(QFrame):
         self.canon_combo.setStyleSheet(fs)
         lay.addWidget(self.canon_combo)
 
+        lay.addWidget(_lbl("LINKED ROOT ENTITY"))
+        self.root_combo = QComboBox()
+        self.root_combo.addItem("None", None)
+        self.root_combo.setStyleSheet(fs)
+        lay.addWidget(self.root_combo)
+
         lay.addWidget(_lbl("IMPORTANCE SCORE  (1 – 100)"))
         score_row = QHBoxLayout()
         self.score_slider = QSlider(Qt.Horizontal)
@@ -407,6 +433,7 @@ class UniverseFormPanel(QFrame):
         self.name_input.clear()
         self.desc_input.clear()
         self.canon_combo.setCurrentIndex(0)
+        self.root_combo.setCurrentIndex(0)
         self.score_slider.setValue(50)
         self._status.setText("")
         self._save_btn.setEnabled(True)
@@ -418,6 +445,12 @@ class UniverseFormPanel(QFrame):
         self.desc_input.setPlainText(data["description"])
         idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
         self.canon_combo.setCurrentIndex(idx)
+        
+        # Set root entity combo
+        root_id = data.get("root_entity_id")
+        idx = self.root_combo.findData(root_id) if root_id else 0
+        self.root_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        
         self.score_slider.setValue(data["importance_score"])
         self._status.setText("")
         self._save_btn.setEnabled(True)
@@ -440,6 +473,7 @@ class UniverseFormPanel(QFrame):
             "description":      self.desc_input.toPlainText().strip(),
             "canon_status":     self.canon_combo.currentData(),
             "importance_score": self.score_slider.value(),
+            "root_entity_id":   self.root_combo.currentData(),
         }
 
         self._save_btn.setEnabled(False)
@@ -632,8 +666,16 @@ class UniversesViewWidget(QWidget):
         if len(text) == 0 or len(text) >= 2:
             self._load()
 
-    def _on_loaded(self, universes: list):
+    def _on_loaded(self, payload: list):
+        universes, root_entities = payload
         self._universes = universes
+        
+        # Update Root Entities dropdown
+        self._form_panel.root_combo.clear()
+        self._form_panel.root_combo.addItem("None", None)
+        for re in root_entities:
+            self._form_panel.root_combo.addItem(re["name"], re["id"])
+            
         self._rebuild_cards()
         count = len(universes)
         self._status_lbl.setText(f"{count} universe{'s' if count != 1 else ''}")
