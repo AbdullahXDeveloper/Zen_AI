@@ -35,9 +35,11 @@ class TimelineWorker(QThread):
             data = get_timeline(session, scope=self.scope, entity_id=self.entity_id)
             self.data_ready.emit(data)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
         finally:
-            session.close()
+            if 'session' in locals() and session: session.close()
 
 
 # ─────────────────────────────────────────────

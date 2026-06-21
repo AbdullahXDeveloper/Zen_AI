@@ -75,7 +75,7 @@ def update_location(
     if not loc:
         return None
 
-    allowed = {"name", "description", "type", "canon_status", "importance_score"}
+    allowed = {"universe_id", "name", "description", "type", "canon_status", "importance_score"}
     for key, val in kwargs.items():
         if key in allowed:
             setattr(loc, key, val)

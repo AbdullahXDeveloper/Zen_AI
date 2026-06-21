@@ -58,7 +58,11 @@ class LoadArtifactsWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class LoadUniversesForArtWorker(QThread):
@@ -73,7 +77,11 @@ class LoadUniversesForArtWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class SaveArtifactWorker(QThread):
@@ -95,7 +103,11 @@ class SaveArtifactWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class DeleteArtifactWorker(QThread):
@@ -113,7 +125,11 @@ class DeleteArtifactWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Artifact Card ──────────────────────────────────────

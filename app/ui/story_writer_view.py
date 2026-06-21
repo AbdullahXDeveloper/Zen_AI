@@ -43,7 +43,11 @@ class LoadStoryContextWorker(QThread):
             session.close()
             self.done.emit(unis, chars)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class GenerateStoryWorker(QThread):
@@ -78,7 +82,11 @@ class GenerateStoryWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class SaveGeneratedStoryWorker(QThread):
@@ -109,7 +117,11 @@ class SaveGeneratedStoryWorker(QThread):
             session.close()
             self.done.emit(sid)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Main Story Writer View ──────────────────────────────

@@ -51,16 +51,14 @@ def build_character_context(session, character_id: int) -> str:
         power_lines = [f"- {getattr(p, 'name', '?')}: {getattr(p, 'description', '')[:120]}" for p in powers]
         parts.append(_fmt_block("Powers", power_lines))
 
-    # Relationships
-    rels = crud.list_entity_events(session, character_id, entity_type="character") \
-        if hasattr(crud, "list_entity_events") else []
-
-    # Faction (if linked)
-    faction_id = getattr(char, "faction_id", None)
-    if faction_id:
-        faction = crud.get_faction(session, faction_id)
-        if faction:
-            parts.append(_fmt_block("Faction", [_fmt_entity(faction, "faction")]))
+    # Faction — find any faction where this character is the founder
+    from app.database.models import Faction as _Faction
+    founded_factions = session.query(_Faction).filter(
+        _Faction.founder_id == character_id
+    ).all()
+    if founded_factions:
+        faction_lines = [_fmt_entity(f, "faction") for f in founded_factions]
+        parts.append(_fmt_block("Founded Factions", faction_lines))
 
     # Variants (alternate versions)
     if hasattr(crud, "list_character_variants"):

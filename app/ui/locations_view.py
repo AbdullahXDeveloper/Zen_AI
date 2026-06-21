@@ -77,7 +77,11 @@ class LoadLocationsWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class LoadUniversesForLocWorker(QThread):
@@ -92,7 +96,11 @@ class LoadUniversesForLocWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class SaveLocationWorker(QThread):
@@ -114,7 +122,11 @@ class SaveLocationWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class DeleteLocationWorker(QThread):
@@ -132,7 +144,11 @@ class DeleteLocationWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─────────────────────────────────────────────────────────

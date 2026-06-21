@@ -85,7 +85,7 @@ def update_event(
         return None
 
     allowed = {
-        "name", "description", "date_value", "date_label",
+        "universe_id", "name", "description", "date_value", "date_label",
         "event_type", "canon_status", "importance_score",
     }
     for key, val in kwargs.items():

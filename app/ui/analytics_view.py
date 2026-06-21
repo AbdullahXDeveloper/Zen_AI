@@ -77,7 +77,11 @@ class LoadAnalyticsWorker(QThread):
                 "top_universes": top_unis[:5],
             })
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Stat Card ──────────────────────────────────────────

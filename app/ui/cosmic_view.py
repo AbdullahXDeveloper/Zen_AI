@@ -229,7 +229,11 @@ class CosmicDataWorker(QThread):
             session.close()
             self.done.emit({"nodes": nodes, "edges": edges})
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── HTML Generator ──────────────────────────────────────

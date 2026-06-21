@@ -58,9 +58,11 @@ class GraphWorker(QThread):
             export_graph_to_html(G, tmp.name)
             self.graph_ready.emit(tmp.name)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
         finally:
-            session.close()
+            if 'session' in locals() and session: session.close()
 
 
 # ─────────────────────────────────────────────
@@ -181,6 +183,7 @@ class GraphViewWidget(QWidget):
     def _populate_entity_combo(self, entity_type):
         """DB se entities fetch karke combo populate karo."""
         self.entity_combo.clear()
+        session = None
         try:
             session = get_session()
             if entity_type == "universe":
@@ -198,7 +201,8 @@ class GraphViewWidget(QWidget):
         except Exception as e:
             self.entity_combo.addItem(f"Error: {e}")
         finally:
-            session.close()
+            if session:
+                session.close()
 
     # ── Slots ─────────────────────────────────
 
@@ -248,84 +252,7 @@ class GraphViewWidget(QWidget):
         self._worker.error.connect(self._on_graph_error)
         self._worker.start()
 
-    # def _on_graph_ready(self, html_path):
-    #     import os
-    #     from PySide6.QtCore import QTimer
 
-    #     vis_cache = os.path.join("data", "cache", "vis-network.min.js")
-        
-    #     if not os.path.exists(vis_cache):
-    #         import urllib.request
-    #         os.makedirs(os.path.dirname(vis_cache), exist_ok=True)
-    #         print("[ZenAI] vis.js download ho raha hai...")
-    #         urllib.request.urlretrieve(
-    #             "https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js",
-    #             vis_cache
-    #         )
-    #         print("[ZenAI] vis.js download complete.")
-
-    #     with open(vis_cache, 'r', encoding='utf-8') as f:
-    #         vis_js = f.read()
-
-    #     with open(html_path, 'r', encoding='utf-8') as f:
-    #         html = f.read()
-
-    #     import re
-    #     match = re.search(r'<script[^>]+src=["\']([^"\']*vis[^"\']*)["\'][^>]*></script>', html)
-    #     if match:
-    #         old_tag = match.group(0)
-    #         html = html.replace(old_tag, f'<script type="text/javascript">{vis_js}</script>')
-
-    #     # PyVis ka height fix karo — "100%" ki jagah exact pixels
-    #     html = html.replace(
-    #         'height: 800px',
-    #         'height: 100vh'
-    #     ).replace(
-    #         'width: 100%',
-    #         'width: 100%'
-    #     )
-
-    #     with open(html_path, 'w', encoding='utf-8') as f:
-    #         f.write(html)
-
-    #     url = QUrl.fromLocalFile(html_path)
-        
-    #     # Load hone ke baad 500ms wait karo phir render
-    #     def load_after_ready():
-    #         self.web_view.load(url)
-        
-    #     QTimer.singleShot(300, load_after_ready)
-    #     self.status_label.setText("✓ Graph ready")
-    #     self.generate_btn.setEnabled(True)
-    # def _on_graph_ready(self, html_path):
-    #     test_html = """
-    #     <html>
-    #     <body style="background:red; color:white; font-size:40px;">
-    #         WEBENGINE KAAM KAR RAHA HAI
-    #     </body>
-    #     </html>
-    #     """
-    #     self.web_view.setHtml(test_html)
-    #     self.status_label.setText("✓ Test loaded")
-    #     self.generate_btn.setEnabled(True)
-
-    # def _on_graph_ready(self, html_path):
-    #     import os, re
-
-    #     vis_cache = os.path.join("data", "cache", "vis-network.min.js")
-        
-    #     if not os.path.exists(vis_cache):
-    #         import urllib.request
-    #         os.makedirs(os.path.dirname(vis_cache), exist_ok=True)
-    #         print("[ZenAI] vis.js download ho raha hai...")
-    #         urllib.request.urlretrieve(
-    #             "https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js",
-    #             vis_cache
-    #         )
-    #         print("[ZenAI] vis.js download complete.")
-
-    #     with open(vis_cache, 'r', encoding='utf-8') as f:
-    #         vis_js = f.read()
     def _on_graph_ready(self, html_path):
         import os, re, tempfile
 

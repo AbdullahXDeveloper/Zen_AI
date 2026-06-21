@@ -12,13 +12,14 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QIcon
 from pathlib import Path
 
-_LOGO_PATH = Path(__file__).resolve().parent.parent / "app" / "assets" / "logo.jpg"
+_LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "logo.jpg"
 from app.ui.wiki_view import WikiViewWidget
 from app.ui.ai_chat_view import AIChatWidget
 from app.ui.graph_view import GraphViewWidget        # ← Module 8b: Graph
 from app.ui.timeline_view import TimelineViewWidget  # ← Module 8b: Timeline
 from app.ui.dashboard_view import DashboardWidget    # ← Phase 9A: Dashboard
 from app.ui.universes_view import UniversesViewWidget    # ← Phase 9B: Universes
+from app.ui.root_entities_view import RootEntitiesViewWidget # ← Phase 9B-2: Root Entities
 from app.ui.characters_view import CharactersViewWidget  # ← Phase 9C: Characters
 from app.ui.factions_view import FactionsViewWidget      # ← Phase 9D: Factions
 from app.ui.locations_view import LocationsViewWidget    # ← Phase 9E: Locations
@@ -99,6 +100,7 @@ class ZenMainWindow(QMainWindow):
         self._pages = [
             ("Dashboard",         "◈", DashboardWidget),
             ("Universes",         "🌐", UniversesViewWidget),
+            ("Root Entities",     "★", RootEntitiesViewWidget),
             ("Characters",        "👤", CharactersViewWidget),
             ("Factions",          "⚔", FactionsViewWidget),
             ("Locations",         "📍", LocationsViewWidget),

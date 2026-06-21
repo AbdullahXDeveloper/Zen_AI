@@ -81,10 +81,13 @@ class StatsWorker(QThread):
             except Exception:
                 stats["faiss_vectors"] = -1
 
-            # Ollama status
+            # Ollama status — use configured URL, fall back to default
             try:
                 import requests as _req
-                r = _req.get("http://localhost:11434/api/tags", timeout=2)
+                from config.app_settings import get_app_settings
+                _settings = get_app_settings()
+                _ollama_base = getattr(_settings, "ollama_url", "http://localhost:11434").rstrip("/")
+                r = _req.get(f"{_ollama_base}/api/tags", timeout=2)
                 stats["ollama_online"] = r.status_code == 200
             except Exception:
                 stats["ollama_online"] = False
@@ -92,7 +95,11 @@ class StatsWorker(QThread):
             session.close()
             self.data_ready.emit(stats)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─────────────────────────────────────────────────────────

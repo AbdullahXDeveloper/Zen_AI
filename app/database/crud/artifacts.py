@@ -72,7 +72,7 @@ def update_artifact(
     if not art:
         return None
 
-    allowed = {"name", "description", "owner_id", "powers_json", "importance_score"}
+    allowed = {"universe_id", "name", "description", "owner_id", "powers_json", "importance_score"}
     for key, val in kwargs.items():
         if key in allowed:
             setattr(art, key, val)

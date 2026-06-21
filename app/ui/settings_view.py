@@ -98,7 +98,115 @@ class LoadSettingsDataWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
+
+
+# ─── Connection Test Worker ──────────────────────────────
+class _ConnectionTestWorker(QThread):
+    result_ready    = Signal(str, str)   # (message, color_hex)
+    model_list_ready = Signal(list)      # list of model name strings (Ollama only)
+
+    def __init__(self, provider: str, api_key: str, url: str):
+        super().__init__()
+        self.provider = provider
+        self.api_key  = api_key
+        self.url      = url
+
+    def run(self):
+        import requests
+        try:
+            pid = self.provider
+            key = self.api_key
+            url = self.url
+
+            if pid == "ollama":
+                r = requests.get(f"{url}/api/tags", timeout=4)
+                if r.status_code == 200:
+                    models = [m["name"] for m in r.json().get("models", [])]
+                    self.model_list_ready.emit(models)
+                    self.result_ready.emit(f"✅  Connected  ({len(models)} models)", "#2ecc71")
+                else:
+                    self.result_ready.emit(f"⚠  HTTP {r.status_code}", "#f39c12")
+
+            elif pid == "openai":
+                if not key:
+                    self.result_ready.emit("⚠  API key enter karein pehle", "#f39c12")
+                    return
+                r = requests.get("https://api.openai.com/v1/models",
+                                 headers={"Authorization": f"Bearer {key}"}, timeout=6)
+                if r.status_code == 200:
+                    count = len(r.json().get("data", []))
+                    self.result_ready.emit(f"✅  OpenAI key valid  ({count} models)", "#2ecc71")
+                else:
+                    msg = r.json().get("error", {}).get("message", "?")[:60]
+                    self.result_ready.emit(f"❌  HTTP {r.status_code}: {msg}", "#e74c3c")
+
+            elif pid == "gemini":
+                if not key:
+                    self.result_ready.emit("⚠  Gemini API key enter karein", "#f39c12")
+                    return
+                r = requests.get(
+                    f"https://generativelanguage.googleapis.com/v1beta/models?key={key}",
+                    timeout=6
+                )
+                if r.status_code == 200:
+                    count = len(r.json().get("models", []))
+                    self.result_ready.emit(f"✅  Gemini key valid  ({count} models)", "#2ecc71")
+                else:
+                    err = r.json().get("error", {}).get("message", "?")[:60]
+                    self.result_ready.emit(f"❌  {err}", "#e74c3c")
+
+            elif pid == "anthropic":
+                if not key:
+                    self.result_ready.emit("⚠  Anthropic API key enter karein", "#f39c12")
+                    return
+                r = requests.get("https://api.anthropic.com/v1/models",
+                                 headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
+                                 timeout=6)
+                if r.status_code == 200:
+                    self.result_ready.emit("✅  Anthropic key valid", "#2ecc71")
+                else:
+                    self.result_ready.emit(f"❌  HTTP {r.status_code}", "#e74c3c")
+
+            elif pid == "custom":
+                headers = {}
+                if key:
+                    headers["Authorization"] = f"Bearer {key}"
+                r = requests.get(f"{url}/models", headers=headers, timeout=5)
+                if r.status_code == 200:
+                    self.result_ready.emit("✅  Custom API reachable", "#2ecc71")
+                else:
+                    self.result_ready.emit(f"⚠  HTTP {r.status_code}", "#f39c12")
+
+        except Exception as e:
+            self.result_ready.emit(f"❌  {str(e)[:60]}", "#e74c3c")
+
+
+# ─── Rebuild Index Worker ────────────────────────────────
+class _RebuildIndexWorker(QThread):
+    done  = Signal(int)   # number of entities indexed
+    error = Signal(str)
+
+    def run(self):
+        try:
+            from app.search.search import rebuild_index
+            from app.database.db_init import get_session as _gs
+            session = _gs()
+            try:
+                count = rebuild_index(session)
+                self.done.emit(count)
+            finally:
+                session.close()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Style helpers ───────────────────────────────────────
@@ -477,7 +585,25 @@ class SettingsViewWidget(QWidget):
 
         self._model_combo.clear()
         self._model_combo.setEditable(False)   # reset first
-        self._model_combo.addItems(p["models"])
+        
+        models_to_add = p["models"]
+
+        # Dynamically fetch Ollama models if selected
+        if p["id"] == "ollama":
+            try:
+                import requests
+                url = self._ollama_url.text().strip().rstrip("/")
+                if not url:
+                    url = "http://localhost:11434"
+                r = requests.get(f"{url}/api/tags", timeout=1.0)
+                if r.status_code == 200:
+                    fetched_models = [m["name"] for m in r.json().get("models", [])]
+                    if fetched_models:
+                        models_to_add = fetched_models
+            except Exception:
+                pass
+
+        self._model_combo.addItems(models_to_add)
 
         if p["id"] == "custom":
             self._model_combo.setEditable(True)
@@ -544,92 +670,33 @@ class SettingsViewWidget(QWidget):
     # ── Test connection ───────────────────────────────────
 
     def _test_connection(self):
+        """Run connection test in a background thread so the UI never freezes."""
         pid = self._provider_combo.currentData()
+        key = self._api_key_input.text().strip()
+        url = self._ollama_url.text().strip().rstrip("/")
         self._test_result.setText("Testing...")
-        self._test_result.setStyleSheet("color: #888; font-size: 11px; background: transparent; border: none;")
+        self._test_result.setStyleSheet(
+            "color: #888; font-size: 11px; background: transparent; border: none;"
+        )
 
-        try:
-            if pid == "ollama":
-                import requests
-                url = self._ollama_url.text().strip().rstrip("/")
-                r = requests.get(f"{url}/api/tags", timeout=4)
-                if r.status_code == 200:
-                    models = [m["name"] for m in r.json().get("models", [])]
-                    self._test_result.setText(f"✅  Connected  ({len(models)} models)")
-                    self._test_result.setStyleSheet("color: #2ecc71; font-size: 11px; background: transparent; border: none;")
-                else:
-                    self._test_result.setText(f"⚠  HTTP {r.status_code}")
-                    self._test_result.setStyleSheet("color: #f39c12; font-size: 11px; background: transparent; border: none;")
+        self._conn_worker = _ConnectionTestWorker(pid, key, url)
+        self._conn_worker.result_ready.connect(self._on_test_result)
+        self._conn_worker.model_list_ready.connect(self._on_model_list)
+        self._conn_worker.start()
 
-            elif pid == "openai":
-                import requests
-                key = self._api_key_input.text().strip()
-                if not key:
-                    self._test_result.setText("⚠  API key enter karein pehle")
-                    return
-                r = requests.get("https://api.openai.com/v1/models",
-                                 headers={"Authorization": f"Bearer {key}"}, timeout=6)
-                if r.status_code == 200:
-                    count = len(r.json().get("data", []))
-                    self._test_result.setText(f"✅  OpenAI key valid  ({count} models)")
-                    self._test_result.setStyleSheet("color: #2ecc71; font-size: 11px; background: transparent; border: none;")
-                else:
-                    self._test_result.setText(f"❌  HTTP {r.status_code}: {r.json().get('error',{}).get('message','?')[:60]}")
-                    self._test_result.setStyleSheet("color: #e74c3c; font-size: 11px; background: transparent; border: none;")
+    def _on_test_result(self, message: str, color: str):
+        self._test_result.setText(message)
+        self._test_result.setStyleSheet(
+            f"color: {color}; font-size: 11px; background: transparent; border: none;"
+        )
 
-            elif pid == "gemini":
-                import requests
-                key = self._api_key_input.text().strip()
-                if not key:
-                    self._test_result.setText("⚠  Gemini API key enter karein")
-                    return
-                r = requests.get(
-                    f"https://generativelanguage.googleapis.com/v1beta/models?key={key}",
-                    timeout=6
-                )
-                if r.status_code == 200:
-                    count = len(r.json().get("models", []))
-                    self._test_result.setText(f"✅  Gemini key valid  ({count} models)")
-                    self._test_result.setStyleSheet("color: #2ecc71; font-size: 11px; background: transparent; border: none;")
-                else:
-                    err = r.json().get("error", {}).get("message", "?")[:60]
-                    self._test_result.setText(f"❌  {err}")
-                    self._test_result.setStyleSheet("color: #e74c3c; font-size: 11px; background: transparent; border: none;")
-
-            elif pid == "anthropic":
-                import requests
-                key = self._api_key_input.text().strip()
-                if not key:
-                    self._test_result.setText("⚠  Anthropic API key enter karein")
-                    return
-                r = requests.get("https://api.anthropic.com/v1/models",
-                                 headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
-                                 timeout=6)
-                if r.status_code == 200:
-                    self._test_result.setText("✅  Anthropic key valid")
-                    self._test_result.setStyleSheet("color: #2ecc71; font-size: 11px; background: transparent; border: none;")
-                else:
-                    self._test_result.setText(f"❌  HTTP {r.status_code}")
-                    self._test_result.setStyleSheet("color: #e74c3c; font-size: 11px; background: transparent; border: none;")
-
-            elif pid == "custom":
-                import requests
-                url = self._ollama_url.text().strip().rstrip("/")
-                key = self._api_key_input.text().strip()
-                headers = {}
-                if key:
-                    headers["Authorization"] = f"Bearer {key}"
-                r = requests.get(f"{url}/models", headers=headers, timeout=5)
-                if r.status_code == 200:
-                    self._test_result.setText("✅  Custom API reachable")
-                    self._test_result.setStyleSheet("color: #2ecc71; font-size: 11px; background: transparent; border: none;")
-                else:
-                    self._test_result.setText(f"⚠  HTTP {r.status_code}")
-                    self._test_result.setStyleSheet("color: #f39c12; font-size: 11px; background: transparent; border: none;")
-
-        except Exception as e:
-            self._test_result.setText(f"❌  {str(e)[:60]}")
-            self._test_result.setStyleSheet("color: #e74c3c; font-size: 11px; background: transparent; border: none;")
+    def _on_model_list(self, models: list):
+        """Update model combo with Ollama's live model list."""
+        current_model = self._model_combo.currentText()
+        self._model_combo.clear()
+        self._model_combo.addItems(models)
+        if current_model in models:
+            self._model_combo.setCurrentText(current_model)
 
     # ── Data load ─────────────────────────────────────────
 
@@ -698,18 +765,29 @@ class SettingsViewWidget(QWidget):
     # ── Rebuild index ─────────────────────────────────────
 
     def _rebuild_index(self):
+        """Rebuild FAISS index in a background thread so the UI doesn't freeze."""
         self._rebuild_status.setText("Rebuilding...")
-        self._rebuild_status.setStyleSheet("color: #f39c12; font-size: 11px; background: transparent; border: none;")
-        try:
-            from app.search.search import rebuild_index
-            session = get_session()
-            count = rebuild_index(session)
-            session.close()
-            self._rebuild_status.setText(f"✅  {count} entities indexed")
-            self._rebuild_status.setStyleSheet("color: #2ecc71; font-size: 11px; background: transparent; border: none;")
-        except Exception as e:
-            self._rebuild_status.setText(f"❌  {str(e)[:60]}")
-            self._rebuild_status.setStyleSheet("color: #e74c3c; font-size: 11px; background: transparent; border: none;")
+        self._rebuild_status.setStyleSheet(
+            "color: #f39c12; font-size: 11px; background: transparent; border: none;"
+        )
+        self._rebuild_worker = _RebuildIndexWorker()
+        self._rebuild_worker.done.connect(self._on_index_rebuilt)
+        self._rebuild_worker.error.connect(
+            lambda msg: (
+                self._rebuild_status.setText(f"❌  {msg[:60]}"),
+                self._rebuild_status.setStyleSheet(
+                    "color: #e74c3c; font-size: 11px; background: transparent; border: none;"
+                )
+            )
+        )
+        self._rebuild_worker.start()
+
+    def _on_index_rebuilt(self, count: int):
+        self._rebuild_status.setText(f"✅  {count} entities indexed")
+        self._rebuild_status.setStyleSheet(
+            "color: #2ecc71; font-size: 11px; background: transparent; border: none;"
+        )
+
 
     # ── Save ──────────────────────────────────────────────
 
@@ -717,12 +795,21 @@ class SettingsViewWidget(QWidget):
         s = get_app_settings()
 
         # AI section
+        try:
+            temperature = float(self._temp_input.text().strip() or "1.0")
+        except ValueError:
+            self._save_status.setText("⚠  Temperature must be a number (e.g. 0.7)")
+            self._save_status.setStyleSheet(
+                "color: #e74c3c; font-size: 11px; background: transparent; border: none;"
+            )
+            return
+
         s.update_section("ai", {
             "provider":    self._provider_combo.currentData(),
             "model":       self._model_combo.currentText().strip(),
             "ollama_url":  self._ollama_url.text().strip(),
             "api_key":     self._api_key_input.text().strip(),
-            "temperature": float(self._temp_input.text().strip() or "1.0"),
+            "temperature": temperature,
         })
 
         # Display section
@@ -733,7 +820,11 @@ class SettingsViewWidget(QWidget):
                 rw = int(self._custom_w.text())
                 rh = int(self._custom_h.text())
             except ValueError:
-                rw, rh = 1280, 800
+                self._save_status.setText("⚠  Custom resolution must be integers (e.g. 1920 x 1080)")
+                self._save_status.setStyleSheet(
+                    "color: #e74c3c; font-size: 11px; background: transparent; border: none;"
+                )
+                return
         s.update_section("display", {"width": rw, "height": rh})
 
         # Worldbuilding section

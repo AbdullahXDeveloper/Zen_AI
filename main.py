@@ -34,8 +34,19 @@ def main():
     app.setFont(QFont("Segoe UI", 11))
 
     window = ZenMainWindow()
+
+    # Clamp window to available screen geometry to prevent Qt geometry warnings
+    screen = app.primaryScreen().availableGeometry()
+    win_w  = min(1280, screen.width())
+    win_h  = min(800,  screen.height())
+    window.resize(win_w, win_h)
+    window.move(
+        screen.x() + (screen.width()  - win_w) // 2,
+        screen.y() + (screen.height() - win_h) // 2,
+    )
+
     window.show()
-    
+
     print("[Zen AI] System Ready.")
     sys.exit(app.exec())
 

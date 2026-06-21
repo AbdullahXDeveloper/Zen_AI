@@ -110,7 +110,7 @@ def update_character(
         return None
 
     allowed = {
-        "name", "titles", "aliases", "species", "traits_json",
+        "universe_id", "name", "titles", "aliases", "species", "traits_json",
         "personality", "motivations", "goals", "ideology",
         "canon_status", "importance_score", "parent_character_id",
     }

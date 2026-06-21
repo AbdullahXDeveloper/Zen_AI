@@ -72,7 +72,11 @@ class LoadFactionsWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class LoadUniversesForFacWorker(QThread):
@@ -87,7 +91,11 @@ class LoadUniversesForFacWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class SaveFactionWorker(QThread):
@@ -109,7 +117,11 @@ class SaveFactionWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class DeleteFactionWorker(QThread):
@@ -127,7 +139,11 @@ class DeleteFactionWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─────────────────────────────────────────────────────────

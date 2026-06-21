@@ -1,17 +1,6 @@
 """
-app/ui/universes_view.py
-Zen AI — Universes CRUD Page (Phase 9B)
-
-Features:
-  - Card grid: all universes, color-coded by canon_status
-  - Filter bar: canon_status, search by name
-  - Slide-in right panel: Create / Edit form
-  - Delete confirmation dialog
-  - QThread workers for non-blocking DB ops
-
-Fixes (v2):
-  - Form panel has fixed header (✕ close) + fixed footer (Cancel/Save)
-  - Panel closes itself immediately on save/cancel — no more "stuck open"
+app/ui/root_entities_view.py
+Zen AI — Root Entities CRUD Page
 """
 
 from PySide6.QtWidgets import (
@@ -26,47 +15,35 @@ from PySide6.QtGui import QFont, QIntValidator
 from app.database.db_init import get_session
 from app.database import crud
 
-# ─────────────────────────────────────────────────────────
-# Canon status colours
-# ─────────────────────────────────────────────────────────
-CANON_COLORS = {
-    "canon":        "#00ADB5",
-    "non_canon":    "#e74c3c",
-    "alt_timeline": "#9b59b6",
-    "experimental": "#f39c12",
-}
-CANON_OPTIONS = ["canon", "non_canon", "alt_timeline", "experimental"]
-
 
 # ─────────────────────────────────────────────────────────
 # Workers
 # ─────────────────────────────────────────────────────────
-class LoadUniversesWorker(QThread):
+class LoadRootEntitiesWorker(QThread):
     done  = Signal(list)
     error = Signal(str)
 
-    def __init__(self, canon_filter=None, name_filter=None):
+    def __init__(self, type_filter=None):
         super().__init__()
-        self.canon_filter = canon_filter
-        self.name_filter  = name_filter
+        self.type_filter = type_filter
 
     def run(self):
         try:
             session = get_session()
-            unis = crud.list_universes(
+            entities = crud.list_root_entities(
                 session,
-                canon_status=self.canon_filter or None,
-                name_contains=self.name_filter or None,
+                type=self.type_filter or None
             )
             result = [
                 {
-                    "id":          u.id,
-                    "name":        u.name,
-                    "description": u.description or "",
-                    "canon_status": u.canon_status,
-                    "importance_score": u.importance_score,
+                    "id":          e.id,
+                    "name":        e.name,
+                    "type":        e.type or "",
+                    "description": e.description or "",
+                    "notes":       e.notes or "",
+                    "importance_score": e.importance_score,
                 }
-                for u in unis
+                for e in entities
             ]
             session.close()
             self.done.emit(result)
@@ -78,22 +55,22 @@ class LoadUniversesWorker(QThread):
             if 'session' in locals() and session: session.close()
 
 
-class SaveUniverseWorker(QThread):
+class SaveRootEntityWorker(QThread):
     done  = Signal(str)
     error = Signal(str)
 
-    def __init__(self, data: dict, universe_id: int = None):
+    def __init__(self, data: dict, entity_id: int = None):
         super().__init__()
         self.data        = data
-        self.universe_id = universe_id
+        self.entity_id   = entity_id
 
     def run(self):
         try:
             session = get_session()
-            if self.universe_id:
-                crud.update_universe(session, self.universe_id, **self.data)
+            if self.entity_id:
+                crud.update_root_entity(session, self.entity_id, **self.data)
             else:
-                crud.create_universe(session, **self.data)
+                crud.create_root_entity(session, **self.data)
             session.close()
             self.done.emit("ok")
         except Exception as e:
@@ -104,20 +81,23 @@ class SaveUniverseWorker(QThread):
             if 'session' in locals() and session: session.close()
 
 
-class DeleteUniverseWorker(QThread):
+class DeleteRootEntityWorker(QThread):
     done  = Signal(str)
     error = Signal(str)
 
-    def __init__(self, universe_id: int):
+    def __init__(self, entity_id: int):
         super().__init__()
-        self.universe_id = universe_id
+        self.entity_id = entity_id
 
     def run(self):
         try:
             session = get_session()
-            crud.delete_universe(session, self.universe_id)
+            success = crud.delete_root_entity(session, self.entity_id)
             session.close()
-            self.done.emit("ok")
+            if success:
+                self.done.emit("ok")
+            else:
+                self.error.emit("Entity not found or could not be deleted.")
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -127,18 +107,18 @@ class DeleteUniverseWorker(QThread):
 
 
 # ─────────────────────────────────────────────────────────
-# Universe Card
+# Root Entity Card
 # ─────────────────────────────────────────────────────────
-class UniverseCard(QFrame):
+class RootEntityCard(QFrame):
     edit_clicked   = Signal(dict)
     delete_clicked = Signal(dict)
 
     def __init__(self, data: dict):
         super().__init__()
         self.data  = data
-        color = CANON_COLORS.get(data["canon_status"], "#00ADB5")
+        color = "#FFD700"  # Golden color for Root Entities
 
-        self.setFixedHeight(160)
+        self.setFixedHeight(180)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setStyleSheet(f"""
             QFrame {{
@@ -161,14 +141,15 @@ class UniverseCard(QFrame):
         # ── Header row ──
         hdr = QHBoxLayout()
 
-        name_lbl = QLabel(f"🌐  {data['name']}")
+        name_lbl = QLabel(f"★  {data['name']}")
         name_lbl.setStyleSheet(
             "color: #EEEEEE; font-size: 15px; font-weight: 700; "
             "background: transparent; border: none;"
         )
 
-        canon_lbl = QLabel(data["canon_status"].replace("_", " ").upper())
-        canon_lbl.setStyleSheet(
+        type_text = data['type'] if data['type'] else "Unknown Type"
+        type_lbl = QLabel(type_text.upper())
+        type_lbl.setStyleSheet(
             f"color: {color}; font-size: 9px; font-weight: 700; "
             f"background: {color}18; border: 1px solid {color}44; "
             "border-radius: 4px; padding: 2px 8px;"
@@ -176,7 +157,7 @@ class UniverseCard(QFrame):
 
         hdr.addWidget(name_lbl)
         hdr.addStretch()
-        hdr.addWidget(canon_lbl)
+        hdr.addWidget(type_lbl)
         lay.addLayout(hdr)
 
         # ── Description ──
@@ -187,6 +168,13 @@ class UniverseCard(QFrame):
             "color: #555; font-size: 12px; background: transparent; border: none;"
         )
         lay.addWidget(desc_lbl)
+        
+        # ── Notes snippet ──
+        if data["notes"]:
+            notes_snippet = data["notes"][:40] + "…" if len(data["notes"]) > 40 else data["notes"]
+            notes_lbl = QLabel(f"<i>Notes: {notes_snippet}</i>")
+            notes_lbl.setStyleSheet("color: #777; font-size: 10px; background: transparent; border: none;")
+            lay.addWidget(notes_lbl)
 
         lay.addStretch()
 
@@ -199,7 +187,7 @@ class UniverseCard(QFrame):
 
         edit_btn = QPushButton("✎  Edit")
         edit_btn.setFixedSize(70, 26)
-        edit_btn.setStyleSheet(self._action_btn("#00ADB5"))
+        edit_btn.setStyleSheet(self._action_btn(color))
         edit_btn.clicked.connect(lambda: self.edit_clicked.emit(self.data))
 
         del_btn = QPushButton("✕  Delete")
@@ -233,9 +221,9 @@ class UniverseCard(QFrame):
 
 
 # ─────────────────────────────────────────────────────────
-# Slide-in Form Panel  (FIXED: header + footer always visible)
+# Slide-in Form Panel
 # ─────────────────────────────────────────────────────────
-class UniverseFormPanel(QFrame):
+class RootEntityFormPanel(QFrame):
     """Right-side slide-in panel for Create / Edit."""
     saved     = Signal()
     cancelled = Signal()
@@ -260,9 +248,9 @@ class UniverseFormPanel(QFrame):
         h_lay.setContentsMargins(20, 0, 12, 0)
         h_lay.setSpacing(8)
 
-        self._title = QLabel("New Universe")
+        self._title = QLabel("New Root Entity")
         self._title.setStyleSheet(
-            "color: #00ADB5; font-size: 15px; font-weight: 800; "
+            "color: #FFD700; font-size: 15px; font-weight: 800; "
             "background: transparent; border: none;"
         )
 
@@ -289,12 +277,12 @@ class UniverseFormPanel(QFrame):
         self._save_btn.setFixedWidth(80)
         self._save_btn.setStyleSheet("""
             QPushButton {
-                background: #00ADB5; color: #000;
+                background: #FFD700; color: #000;
                 border: none; border-radius: 5px;
                 font-size: 12px; font-weight: 700;
             }
-            QPushButton:hover { background: #00C9D4; }
-            QPushButton:disabled { background: #1A3A3A; color: #555; }
+            QPushButton:hover { background: #FFEA00; }
+            QPushButton:disabled { background: #3A3A00; color: #555; }
         """)
         self._save_btn.clicked.connect(self._save)
 
@@ -347,47 +335,55 @@ class UniverseFormPanel(QFrame):
                 border: 1px solid #222; border-radius: 6px;
                 padding: 8px 12px; font-size: 13px;
             }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus { border-color: #00ADB5; }
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus { border-color: #FFD700; }
             QComboBox QAbstractItemView {
                 background: #111; color: #CCC;
-                selection-background-color: #00ADB5;
+                selection-background-color: #FFD700;
+                selection-color: #000;
             }
         """
 
         lay.addWidget(_lbl("NAME  *"))
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("e.g.  Zendrix Prime")
+        self.name_input.setPlaceholderText("e.g.  OM_X")
         self.name_input.setStyleSheet(fs)
         lay.addWidget(self.name_input)
+        
+        lay.addWidget(_lbl("TYPE"))
+        self.type_input = QComboBox()
+        self.type_input.setEditable(True)
+        self.type_input.addItems(["Root Entity", "Cosmic Structure", "Primordial Force", "Multiversal Anchor"])
+        self.type_input.setStyleSheet(fs)
+        lay.addWidget(self.type_input)
 
         lay.addWidget(_lbl("DESCRIPTION"))
         self.desc_input = QTextEdit()
-        self.desc_input.setPlaceholderText("Universe ka brief description...")
-        self.desc_input.setFixedHeight(110)
+        self.desc_input.setPlaceholderText("Brief description of this entity...")
+        self.desc_input.setFixedHeight(80)
         self.desc_input.setStyleSheet(fs)
         lay.addWidget(self.desc_input)
-
-        lay.addWidget(_lbl("CANON STATUS"))
-        self.canon_combo = QComboBox()
-        for opt in CANON_OPTIONS:
-            self.canon_combo.addItem(opt.replace("_", " ").title(), opt)
-        self.canon_combo.setStyleSheet(fs)
-        lay.addWidget(self.canon_combo)
+        
+        lay.addWidget(_lbl("PRIVATE NOTES"))
+        self.notes_input = QTextEdit()
+        self.notes_input.setPlaceholderText("Hidden lore, true intentions, creator notes...")
+        self.notes_input.setFixedHeight(80)
+        self.notes_input.setStyleSheet(fs)
+        lay.addWidget(self.notes_input)
 
         lay.addWidget(_lbl("IMPORTANCE SCORE  (1 – 100)"))
         score_row = QHBoxLayout()
         self.score_slider = QSlider(Qt.Horizontal)
         self.score_slider.setRange(1, 100)
-        self.score_slider.setValue(50)
+        self.score_slider.setValue(100)
         self.score_slider.setStyleSheet("""
             QSlider::groove:horizontal { background: #1A1A1A; height: 6px; border-radius: 3px; }
-            QSlider::handle:horizontal { background: #00ADB5; width: 16px; height: 16px; margin: -5px 0; border-radius: 8px; }
-            QSlider::sub-page:horizontal { background: #00ADB5; border-radius: 3px; }
+            QSlider::handle:horizontal { background: #FFD700; width: 16px; height: 16px; margin: -5px 0; border-radius: 8px; }
+            QSlider::sub-page:horizontal { background: #FFD700; border-radius: 3px; }
         """)
-        self.score_val = QLabel("50")
+        self.score_val = QLabel("100")
         self.score_val.setFixedWidth(30)
         self.score_val.setStyleSheet(
-            "color: #00ADB5; font-size: 13px; font-weight: 700; background: transparent; border: none;"
+            "color: #FFD700; font-size: 13px; font-weight: 700; background: transparent; border: none;"
         )
         self.score_slider.valueChanged.connect(lambda v: self.score_val.setText(str(v)))
         score_row.addWidget(self.score_slider)
@@ -403,21 +399,22 @@ class UniverseFormPanel(QFrame):
 
     def open_create(self):
         self._edit_id = None
-        self._title.setText("New Universe")
+        self._title.setText("New Root Entity")
         self.name_input.clear()
+        self.type_input.setCurrentText("Root Entity")
         self.desc_input.clear()
-        self.canon_combo.setCurrentIndex(0)
-        self.score_slider.setValue(50)
+        self.notes_input.clear()
+        self.score_slider.setValue(100)
         self._status.setText("")
         self._save_btn.setEnabled(True)
 
     def open_edit(self, data: dict):
         self._edit_id = data["id"]
-        self._title.setText("Edit Universe")
+        self._title.setText("Edit Root Entity")
         self.name_input.setText(data["name"])
+        self.type_input.setCurrentText(data["type"])
         self.desc_input.setPlainText(data["description"])
-        idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
-        self.canon_combo.setCurrentIndex(idx)
+        self.notes_input.setPlainText(data["notes"])
         self.score_slider.setValue(data["importance_score"])
         self._status.setText("")
         self._save_btn.setEnabled(True)
@@ -425,7 +422,7 @@ class UniverseFormPanel(QFrame):
     # ── Internal ──────────────────────────────────────────
 
     def _cancel(self):
-        """Close immediately — no signal chain delay."""
+        """Close immediately."""
         self.hide()
         self.cancelled.emit()
 
@@ -437,27 +434,28 @@ class UniverseFormPanel(QFrame):
 
         payload = {
             "name":             name,
+            "type":             self.type_input.currentText().strip(),
             "description":      self.desc_input.toPlainText().strip(),
-            "canon_status":     self.canon_combo.currentData(),
+            "notes":            self.notes_input.toPlainText().strip(),
             "importance_score": self.score_slider.value(),
         }
 
         self._save_btn.setEnabled(False)
         self._status.setText("Saving...")
         self._status.setStyleSheet(
-            "color: #00ADB5; font-size: 11px; background: transparent; border: none;"
+            "color: #FFD700; font-size: 11px; background: transparent; border: none;"
         )
 
-        self._worker = SaveUniverseWorker(payload, self._edit_id)
+        self._worker = SaveRootEntityWorker(payload, self._edit_id)
         self._worker.done.connect(self._on_saved)
         self._worker.error.connect(self._on_error)
         self._worker.start()
 
     def _on_saved(self, _):
-        self.hide()                 # close immediately
+        self.hide()
         self._save_btn.setEnabled(True)
         self._status.setText("")
-        self.saved.emit()           # parent reloads cards
+        self.saved.emit()
 
     def _on_error(self, msg: str):
         self._status.setText(f"⚠  {msg}")
@@ -468,14 +466,18 @@ class UniverseFormPanel(QFrame):
 
 
 # ─────────────────────────────────────────────────────────
-# Main Universes View
+# Main Root Entities View
 # ─────────────────────────────────────────────────────────
-class UniversesViewWidget(QWidget):
+class RootEntitiesViewWidget(QWidget):
     def __init__(self):
         super().__init__()
         self._load_worker   = None
         self._delete_worker = None
-        self._universes     = []
+        self._entities      = []
+        
+        # Protect seeded root entities
+        self._protected_names = ["K", "_LA", "OM_X", "Zendrix Tree"]
+        
         self._setup_ui()
         self._load()
 
@@ -501,9 +503,9 @@ class UniversesViewWidget(QWidget):
         bar_lay.setContentsMargins(32, 0, 32, 0)
         bar_lay.setSpacing(12)
 
-        title = QLabel("🌐  Universes")
+        title = QLabel("★  Root Entities")
         title.setStyleSheet(
-            "color: #00ADB5; font-size: 20px; font-weight: 900; "
+            "color: #FFD700; font-size: 20px; font-weight: 900; "
             "letter-spacing: 2px; background: transparent; border: none;"
         )
         self._status_lbl = QLabel("")
@@ -511,15 +513,15 @@ class UniversesViewWidget(QWidget):
             "color: #333; font-size: 11px; background: transparent; border: none;"
         )
 
-        self._new_btn = QPushButton("＋  New Universe")
+        self._new_btn = QPushButton("＋  New Root Entity")
         self._new_btn.setFixedHeight(34)
         self._new_btn.setStyleSheet("""
             QPushButton {
-                background: #00ADB5; color: #000;
+                background: #FFD700; color: #000;
                 border: none; border-radius: 7px;
                 padding: 0 18px; font-size: 13px; font-weight: 700;
             }
-            QPushButton:hover { background: #00C9D4; }
+            QPushButton:hover { background: #FFEA00; }
         """)
         self._new_btn.clicked.connect(self._open_create)
 
@@ -537,42 +539,27 @@ class UniversesViewWidget(QWidget):
         f_lay.setContentsMargins(32, 0, 32, 0)
         f_lay.setSpacing(12)
 
-        self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("🔍  Search universes...")
-        self._search_input.setFixedHeight(30)
-        self._search_input.setFixedWidth(220)
-        self._search_input.setStyleSheet("""
-            QLineEdit {
-                background: #111; color: #CCC;
-                border: 1px solid #222; border-radius: 6px;
-                padding: 0 12px; font-size: 12px;
-            }
-            QLineEdit:focus { border-color: #00ADB5; }
-        """)
-        self._search_input.textChanged.connect(self._on_search_changed)
-
         combo_style = """
             QComboBox {
                 background: #111; color: #888;
                 border: 1px solid #222; border-radius: 6px;
                 padding: 0 10px; font-size: 12px;
-                min-width: 140px; height: 30px;
+                min-width: 160px; height: 30px;
             }
             QComboBox:hover { border-color: #333; }
             QComboBox QAbstractItemView {
                 background: #111; color: #CCC;
-                selection-background-color: #00ADB5;
+                selection-background-color: #FFD700;
+                selection-color: #000;
             }
         """
-        self._canon_combo = QComboBox()
-        self._canon_combo.addItem("All Canon Status", None)
-        for opt in CANON_OPTIONS:
-            self._canon_combo.addItem(opt.replace("_", " ").title(), opt)
-        self._canon_combo.setStyleSheet(combo_style)
-        self._canon_combo.currentIndexChanged.connect(self._load)
+        self._type_combo = QComboBox()
+        self._type_combo.addItem("All Entity Types", None)
+        self._type_combo.addItems(["Root Entity", "Cosmic Structure", "Primordial Force"])
+        self._type_combo.setStyleSheet(combo_style)
+        self._type_combo.currentIndexChanged.connect(self._load)
 
-        f_lay.addWidget(self._search_input)
-        f_lay.addWidget(self._canon_combo)
+        f_lay.addWidget(self._type_combo)
         f_lay.addStretch()
         left_lay.addWidget(filter_bar)
 
@@ -583,7 +570,7 @@ class UniversesViewWidget(QWidget):
             QScrollArea { border: none; background: #0D0D0D; }
             QScrollBar:vertical { background: #111; width: 6px; border-radius: 3px; }
             QScrollBar::handle:vertical { background: #2A2A2A; border-radius: 3px; min-height: 20px; }
-            QScrollBar::handle:vertical:hover { background: #00ADB5; }
+            QScrollBar::handle:vertical:hover { background: #FFD700; }
         """)
 
         self._cards_widget = QWidget()
@@ -599,7 +586,7 @@ class UniversesViewWidget(QWidget):
         root.addWidget(main_area)
 
         # ── Right: Slide-in form panel ──
-        self._form_panel = UniverseFormPanel()
+        self._form_panel = RootEntityFormPanel()
         self._form_panel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self._form_panel.saved.connect(self._load)
         self._form_panel.hide()
@@ -621,22 +608,17 @@ class UniversesViewWidget(QWidget):
     def _load(self):
         self._status_lbl.setText("Loading...")
         self._new_btn.setEnabled(False)
-        canon_filter = self._canon_combo.currentData()
-        name_filter  = self._search_input.text().strip()
-        self._load_worker = LoadUniversesWorker(canon_filter, name_filter)
+        type_filter = self._type_combo.currentData()
+        self._load_worker = LoadRootEntitiesWorker(type_filter)
         self._load_worker.done.connect(self._on_loaded)
         self._load_worker.error.connect(self._on_error)
         self._load_worker.start()
 
-    def _on_search_changed(self, text: str):
-        if len(text) == 0 or len(text) >= 2:
-            self._load()
-
-    def _on_loaded(self, universes: list):
-        self._universes = universes
+    def _on_loaded(self, entities: list):
+        self._entities = entities
         self._rebuild_cards()
-        count = len(universes)
-        self._status_lbl.setText(f"{count} universe{'s' if count != 1 else ''}")
+        count = len(entities)
+        self._status_lbl.setText(f"{count} entit{'y' if count == 1 else 'ies'}")
         self._new_btn.setEnabled(True)
 
     def _on_error(self, msg: str):
@@ -651,8 +633,8 @@ class UniversesViewWidget(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        if not self._universes:
-            empty = QLabel("Koi universe nahi mila.\n\nUpar '＋ New Universe' click karein.")
+        if not self._entities:
+            empty = QLabel("No Root Entities found.\n\nClick '＋ New Root Entity' to add one.")
             empty.setAlignment(Qt.AlignCenter)
             empty.setStyleSheet(
                 "color: #222; font-size: 16px; padding: 60px; "
@@ -662,43 +644,66 @@ class UniversesViewWidget(QWidget):
             return
 
         cols = 3
-        for i, data in enumerate(self._universes):
-            card = UniverseCard(data)
+        for i, data in enumerate(self._entities):
+            card = RootEntityCard(data)
             card.edit_clicked.connect(self._open_edit)
             card.delete_clicked.connect(self._confirm_delete)
             self._cards_layout.addWidget(card, i // cols, i % cols)
 
-        remainder = len(self._universes) % cols
+        remainder = len(self._entities) % cols
         if remainder:
             for j in range(cols - remainder):
                 spacer = QWidget()
                 spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-                row = len(self._universes) // cols
+                row = len(self._entities) // cols
                 self._cards_layout.addWidget(spacer, row, remainder + j)
 
     # ── Delete ────────────────────────────────────────────
 
     def _confirm_delete(self, data: dict):
-        dlg = QMessageBox(self)
-        dlg.setWindowTitle("Delete Universe")
-        dlg.setText(
-            f"<b style='color:#e74c3c'>'{data['name']}'</b> delete karna chahte ho?<br>"
-            "<small style='color:#666'>Yeh action undo nahi hogi.</small>"
-        )
-        dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-        dlg.setDefaultButton(QMessageBox.Cancel)
-        dlg.setStyleSheet("""
-            QMessageBox { background: #111; color: #CCC; font-size: 13px; }
-            QPushButton {
-                background: #1A1A1A; color: #CCC;
-                border: 1px solid #333; border-radius: 6px;
-                padding: 6px 20px; font-size: 13px;
-            }
-            QPushButton:hover { background: #222; }
-        """)
+        if data['name'] in self._protected_names:
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("Protected Entity")
+            dlg.setText(
+                f"<b style='color:#FFD700'>'{data['name']}'</b> is a core seeded Root Entity.<br>"
+                "Deleting it is heavily discouraged as it may break cosmic connections."
+            )
+            dlg.setInformativeText("Are you absolutely sure you want to proceed?")
+            dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+            dlg.setDefaultButton(QMessageBox.Cancel)
+            dlg.setStyleSheet("""
+                QMessageBox { background: #111; color: #CCC; font-size: 13px; }
+                QPushButton {
+                    background: #1A1A1A; color: #CCC;
+                    border: 1px solid #333; border-radius: 6px;
+                    padding: 6px 20px; font-size: 13px;
+                }
+                QPushButton:hover { background: #222; }
+            """)
+            if dlg.exec() != QMessageBox.Yes:
+                return
+        else:
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("Delete Root Entity")
+            dlg.setText(
+                f"<b style='color:#e74c3c'>'{data['name']}'</b> delete karna chahte ho?<br>"
+                "<small style='color:#666'>Yeh action undo nahi hogi.</small>"
+            )
+            dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+            dlg.setDefaultButton(QMessageBox.Cancel)
+            dlg.setStyleSheet("""
+                QMessageBox { background: #111; color: #CCC; font-size: 13px; }
+                QPushButton {
+                    background: #1A1A1A; color: #CCC;
+                    border: 1px solid #333; border-radius: 6px;
+                    padding: 6px 20px; font-size: 13px;
+                }
+                QPushButton:hover { background: #222; }
+            """)
+            if dlg.exec() != QMessageBox.Yes:
+                return
 
-        if dlg.exec() == QMessageBox.Yes:
-            self._delete_worker = DeleteUniverseWorker(data["id"])
-            self._delete_worker.done.connect(lambda _: self._load())
-            self._delete_worker.error.connect(self._on_error)
-            self._delete_worker.start()
+        self._delete_worker = DeleteRootEntityWorker(data["id"])
+        self._delete_worker.done.connect(lambda _: self._load())
+        self._delete_worker.error.connect(self._on_error)
+        self._delete_worker.start()

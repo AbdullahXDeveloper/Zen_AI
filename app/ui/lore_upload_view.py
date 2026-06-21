@@ -50,7 +50,11 @@ class IngestWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class LoadUniversesForUploadWorker(QThread):
@@ -65,7 +69,11 @@ class LoadUniversesForUploadWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Main Upload View ────────────────────────────────────

@@ -10,6 +10,7 @@ Called:
 
 from __future__ import annotations
 
+import numpy as np
 from sqlalchemy.orm import Session
 
 from app.database.models import (
@@ -128,7 +129,6 @@ def rebuild_index(session: Session):
         texts = [text_fn(r) for r in rows]
         ids = [r.id for r in rows]
 
-        import numpy as np
         vectors = embed_batch(texts)
 
         faiss_store.add_vectors(vectors, entity_type, ids)

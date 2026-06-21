@@ -37,13 +37,13 @@ class Universe(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    characters = relationship("Character", back_populates="universe")
-    factions = relationship("Faction", back_populates="universe")
-    locations = relationship("Location", back_populates="universe")
-    events = relationship("Event", back_populates="universe")
-    artifacts = relationship("Artifact", back_populates="universe")
-    stories = relationship("Story", back_populates="universe")
-    simulation_runs = relationship("SimulationRun", back_populates="universe")
+    characters = relationship("Character", back_populates="universe", cascade="all, delete-orphan")
+    factions = relationship("Faction", back_populates="universe", cascade="all, delete-orphan")
+    locations = relationship("Location", back_populates="universe", cascade="all, delete-orphan")
+    events = relationship("Event", back_populates="universe", cascade="all, delete-orphan")
+    artifacts = relationship("Artifact", back_populates="universe", cascade="all, delete-orphan")
+    stories = relationship("Story", back_populates="universe", cascade="all, delete-orphan")
+    simulation_runs = relationship("SimulationRun", back_populates="universe", cascade="all, delete-orphan")
 
 
 class UniverseConnection(Base):
@@ -74,7 +74,7 @@ class RootEntity(Base):
     notes = Column(Text)
     importance_score = Column(Integer, default=100)
 
-    links = relationship("RootEntityLink", back_populates="root_entity")
+    links = relationship("RootEntityLink", back_populates="root_entity", cascade="all, delete-orphan")
 
 
 class RootEntityLink(Base):
@@ -116,18 +116,32 @@ class Character(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     universe = relationship("Universe", back_populates="characters")
-    variants = relationship("Character", remote_side=[id])
-    powers = relationship("CharacterPower", back_populates="character")
+    variants = relationship(
+        "Character",
+        foreign_keys=[parent_character_id],
+        back_populates="parent",
+        uselist=True,
+    )
+    parent = relationship(
+        "Character",
+        foreign_keys=[parent_character_id],
+        back_populates="variants",
+        remote_side="Character.id",
+        uselist=False,
+    )
+    powers = relationship("CharacterPower", back_populates="character", cascade="all, delete-orphan")
 
     relationships_a = relationship(
         "RelationshipEdge",
         foreign_keys="RelationshipEdge.character_a_id",
-        back_populates="character_a"
+        back_populates="character_a",
+        cascade="all, delete-orphan"
     )
     relationships_b = relationship(
         "RelationshipEdge",
         foreign_keys="RelationshipEdge.character_b_id",
-        back_populates="character_b"
+        back_populates="character_b",
+        cascade="all, delete-orphan"
     )
 
 
@@ -184,7 +198,7 @@ class Power(Base):
     rules = Column(Text)
     scope = Column(String(50), default="local")  # 'universal' / 'local'
 
-    character_links = relationship("CharacterPower", back_populates="power")
+    character_links = relationship("CharacterPower", back_populates="power", cascade="all, delete-orphan")
 
 
 class CharacterPower(Base):
@@ -217,7 +231,7 @@ class Event(Base):
     importance_score = Column(Integer, default=50)
 
     universe = relationship("Universe", back_populates="events")
-    participants = relationship("EventParticipant", back_populates="event")
+    participants = relationship("EventParticipant", back_populates="event", cascade="all, delete-orphan")
 
 
 class EventParticipant(Base):
@@ -350,7 +364,7 @@ class Tag(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), unique=True, nullable=False)
 
-    entity_links = relationship("EntityTag", back_populates="tag")
+    entity_links = relationship("EntityTag", back_populates="tag", cascade="all, delete-orphan")
 
 
 class EntityTag(Base):

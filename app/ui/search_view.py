@@ -55,7 +55,11 @@ class SearchWorker(QThread):
             session.close()
             self.done.emit(results)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Result Card ────────────────────────────────────────

@@ -77,7 +77,7 @@ def update_faction(
     if not fac:
         return None
 
-    allowed = {"name", "founder_id", "ideology", "description", "canon_status", "importance_score"}
+    allowed = {"universe_id", "name", "founder_id", "ideology", "description", "canon_status", "importance_score"}
     for key, val in kwargs.items():
         if key in allowed:
             setattr(fac, key, val)

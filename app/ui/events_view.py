@@ -68,7 +68,11 @@ class LoadEventsWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class LoadUniversesForEvtWorker(QThread):
@@ -83,7 +87,11 @@ class LoadUniversesForEvtWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class SaveEventWorker(QThread):
@@ -105,7 +113,11 @@ class SaveEventWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class DeleteEventWorker(QThread):
@@ -123,7 +135,11 @@ class DeleteEventWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Event Card ─────────────────────────────────────────

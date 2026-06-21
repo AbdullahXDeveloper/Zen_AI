@@ -67,7 +67,11 @@ class LoadStoriesWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class LoadUniversesForStoWorker(QThread):
@@ -82,7 +86,11 @@ class LoadUniversesForStoWorker(QThread):
             session.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class SaveStoryWorker(QThread):
@@ -104,7 +112,11 @@ class SaveStoryWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class DeleteStoryWorker(QThread):
@@ -122,7 +134,11 @@ class DeleteStoryWorker(QThread):
             session.close()
             self.done.emit("ok")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 # ─── Story Card ─────────────────────────────────────────

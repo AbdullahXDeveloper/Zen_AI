@@ -44,18 +44,21 @@ class LoadSimContextWorker(QThread):
     error = Signal(str)
 
     def run(self):
+        s = get_session()
         try:
-            s = get_session()
             unis  = [{"id": u.id, "name": u.name}      for u in s.query(Universe).all()]
             chars = [{"id": c.id, "name": c.name, "type": "character", "universe_id": c.universe_id}  for c in s.query(Character).all()]
             facs  = [{"id": f.id, "name": f.name, "type": "faction",   "universe_id": f.universe_id}  for f in s.query(Faction).all()]
             locs  = [{"id": l.id, "name": l.name, "type": "location",  "universe_id": l.universe_id}  for l in s.query(Location).all()]
             arts  = [{"id": a.id, "name": a.name, "type": "artifact",  "universe_id": a.universe_id}  for a in s.query(Artifact).all()]
             evts  = [{"id": e.id, "name": e.name, "type": "event",     "universe_id": e.universe_id}  for e in s.query(Event).all()]
-            s.close()
             self.done.emit(unis, chars, facs, locs, arts, evts)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 's' in locals() and s: s.close()
 
 
 # ─── Simulation Worker ───────────────────────────────────
@@ -72,10 +75,10 @@ class SimulationWorker(QThread):
         self.depth             = depth
 
     def run(self):
+        from app.simulation.engine import run_simulation
+        self.progress.emit("Building lore context from database...")
+        s = get_session()
         try:
-            from app.simulation.engine import run_simulation
-            self.progress.emit("Building lore context from database...")
-            s = get_session()
             self.progress.emit(f"Running {self.depth} simulation with Ollama...")
             result = run_simulation(
                 s,
@@ -84,10 +87,13 @@ class SimulationWorker(QThread):
                 universe_id       = self.universe_id,
                 simulation_depth  = self.depth,
             )
-            s.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 's' in locals() and s: s.close()
 
 
 # ─── Save Worker ─────────────────────────────────────────
@@ -119,7 +125,11 @@ class SaveSimWorker(QThread):
             s.close()
             self.done.emit(rid)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 # ─── History Loader ─────────────────────────────────────
 class LoadHistoryWorker(QThread):
@@ -146,7 +156,11 @@ class LoadHistoryWorker(QThread):
             s.close()
             self.done.emit(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
 
 
 class ImpactCard(QFrame):
