@@ -937,7 +937,7 @@ class UniverseTreePanel(QWidget):
             QPushButton:hover { background: #00E5FF; }
             QPushButton:disabled { background: #0A2A2B; color: #333; }
         """)
-        self._add_child_btn.clicked.connect(self._add_child_node)
+        self._add_child_btn.clicked.connect(self._on_add_child_btn_clicked)
         self._add_child_btn.setEnabled(False)
 
         bar_lay.addWidget(back_btn)
@@ -1065,13 +1065,12 @@ class UniverseTreePanel(QWidget):
         items = self._tree.selectedItems()
         self._add_child_btn.setEnabled(len(items) > 0)
 
-    def _add_child_node(self):
+    def _on_add_child_btn_clicked(self):
         items = self._tree.selectedItems()
         if not items:
             return
         node_data = items[0].data(0, Qt.UserRole)
-        self._form_panel.load_node(None, parent_id=node_data["id"])
-        self._form_panel.show()
+        self._add_child_node(node_data)
 
     def _show_context_menu(self, pos):
         item = self._tree.itemAt(pos)
