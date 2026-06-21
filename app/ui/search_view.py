@@ -131,7 +131,7 @@ class ResultCard(QFrame):
 class SearchViewWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self._worker  = None
+        self._workers = []
         self._results = []
         self._debounce = QTimer()
         self._debounce.setSingleShot(True)
@@ -260,10 +260,27 @@ class SearchViewWidget(QWidget):
         self._clear_results()
         entity_type = self._type_combo.currentData()
 
-        self._worker = SearchWorker(query, entity_type, top_k=25)
-        self._worker.done.connect(self._on_results)
-        self._worker.error.connect(self._on_error)
-        self._worker.start()
+        # Clean up finished workers just in case
+        self._workers = [w for w in self._workers if w.isRunning()]
+
+        worker = SearchWorker(query, entity_type, top_k=25)
+        worker.done.connect(lambda res, w=worker: self._handle_worker_done(res, w))
+        worker.error.connect(lambda err, w=worker: self._handle_worker_error(err, w))
+        self._workers.append(worker)
+        worker.start()
+
+    def _handle_worker_done(self, results, worker):
+        if worker in self._workers:
+            self._workers.remove(worker)
+        # Only update UI if this is the most recently created worker
+        if not self._workers:
+            self._on_results(results)
+
+    def _handle_worker_error(self, err, worker):
+        if worker in self._workers:
+            self._workers.remove(worker)
+        if not self._workers:
+            self._on_error(err)
 
     def _on_results(self, results: list):
         self._results = results

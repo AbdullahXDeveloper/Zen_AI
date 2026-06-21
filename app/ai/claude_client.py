@@ -2,8 +2,9 @@
 app/ai/claude_client.py
 Zen AI — Universal AI Client  v2
 
-Supports 5 providers selectable from Settings:
-  - ollama      local Ollama server (default)
+Supports providers selectable from Settings:
+  - groq        Groq API (default)
+  - ollama      local Ollama server
   - openai      OpenAI API (GPT-4o, GPT-4, GPT-3.5)
   - gemini      Google Gemini (via REST API)
   - anthropic   Anthropic Claude (via REST API)
@@ -294,7 +295,18 @@ class AnthropicClient(BaseAIClient):
 
 
 # ══════════════════════════════════════════════════════════
-# PROVIDER 5 — CUSTOM  (OpenAI-compatible)
+# PROVIDER 5 — GROQ
+# ══════════════════════════════════════════════════════════
+class GroqClient(OpenAIClient):
+    """Groq API client (OpenAI-compatible)."""
+
+    def __init__(self, api_key: str, model: str = "llama-3.1-8b-instant"):
+        super().__init__(api_key, model)
+        self.API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+
+# ══════════════════════════════════════════════════════════
+# PROVIDER 6 — CUSTOM  (OpenAI-compatible)
 # ══════════════════════════════════════════════════════════
 class CustomAPIClient(OpenAIClient):
     """OpenAI-compatible endpoint with custom base URL."""
@@ -343,7 +355,9 @@ def _build_client() -> BaseAIClient:
         # Fallback to Ollama if settings unavailable
         return OllamaClient()
 
-    if provider == "openai":
+    if provider == "groq":
+        return GroqClient(api_key=key, model=model)
+    elif provider == "openai":
         return OpenAIClient(api_key=key, model=model)
     elif provider == "gemini":
         return GeminiClient(api_key=key, model=model)

@@ -31,6 +31,14 @@ ACCENT = "#00ADB5"
 # ─── AI Providers ────────────────────────────────────────
 PROVIDERS = [
     {
+        "id":    "groq",
+        "label": "⚡  Groq  (Llama 3, Mixtral)",
+        "needs_key": True,
+        "needs_url": False,
+        "models": ["llama-3.1-8b-instant", "llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"],
+        "api_label": "Groq API Key",
+    },
+    {
         "id":    "ollama",
         "label": "🦙  Ollama  (Local, Offline)",
         "needs_key": False,
@@ -131,6 +139,19 @@ class _ConnectionTestWorker(QThread):
                     self.result_ready.emit(f"✅  Connected  ({len(models)} models)", "#2ecc71")
                 else:
                     self.result_ready.emit(f"⚠  HTTP {r.status_code}", "#f39c12")
+
+            elif pid == "groq":
+                if not key:
+                    self.result_ready.emit("⚠  Groq API key enter karein", "#f39c12")
+                    return
+                r = requests.get("https://api.groq.com/openai/v1/models",
+                                 headers={"Authorization": f"Bearer {key}"}, timeout=6)
+                if r.status_code == 200:
+                    count = len(r.json().get("data", []))
+                    self.result_ready.emit(f"✅  Groq key valid  ({count} models)", "#2ecc71")
+                else:
+                    msg = r.json().get("error", {}).get("message", "?")[:60]
+                    self.result_ready.emit(f"❌  HTTP {r.status_code}: {msg}", "#e74c3c")
 
             elif pid == "openai":
                 if not key:
@@ -547,7 +568,7 @@ class SettingsViewWidget(QWidget):
             ("Version",     "v1.3"),
             ("Author",      "Abdullah"),
             ("Database",    "SQLite + SQLAlchemy (21 tables)"),
-            ("AI Backend",  "Multi-provider (Ollama / OpenAI / Gemini / Claude)"),
+            ("AI Backend",  "Multi-provider (Groq / Ollama / OpenAI / Gemini / Claude)"),
             ("Embeddings",  "Sentence Transformers  all-MiniLM-L6-v2 (384-dim)"),
             ("Vector DB",   "FAISS"),
             ("UI",          "PySide6 (Qt6)"),

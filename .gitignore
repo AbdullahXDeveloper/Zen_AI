@@ -35,6 +35,9 @@ config/.env
 *.env
 !.env.example
 
+# ── User Settings (Contains API keys) ──
+config/user_settings.json
+
 # ── Database (local only — do not push) ──
 data/zenai.db
 data/zenai.db-shm

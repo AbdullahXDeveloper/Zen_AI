@@ -8,8 +8,8 @@ Provides a global singleton: get_app_settings()
 Schema:
 {
   "ai": {
-    "provider":    "ollama",          # ollama | openai | gemini | anthropic | custom
-    "model":       "qwen2.5:7b",
+    "provider":    "groq",            # groq | ollama | openai | gemini | anthropic | custom
+    "model":       "llama-3.1-8b-instant",
     "ollama_url":  "http://localhost:11434",
     "api_key":     "",                # stored as plain text (local only)
     "temperature": 1.0
@@ -40,8 +40,8 @@ _SETTINGS_PATH = Path(__file__).resolve().parent / "user_settings.json"
 
 _DEFAULTS: dict = {
     "ai": {
-        "provider":   "ollama",
-        "model":      "qwen2.5:7b",
+        "provider":   "groq",
+        "model":      "llama-3.1-8b-instant",
         "ollama_url": "http://localhost:11434",
         "api_key":    "",
         "temperature": 1.0,
@@ -116,11 +116,11 @@ class AppSettings:
 
     @property
     def ai_provider(self) -> str:
-        return self.get("ai", "provider", "ollama")
+        return self.get("ai", "provider", "groq")
 
     @property
     def ai_model(self) -> str:
-        return self.get("ai", "model", "qwen2.5:7b")
+        return self.get("ai", "model", "llama-3.1-8b-instant")
 
     @property
     def ollama_url(self) -> str:
