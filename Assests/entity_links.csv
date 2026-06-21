@@ -1,0 +1,5 @@
+id,source_entity_type,source_entity_id,target_entity_type,target_entity_id,link_name,created_at
+1,cosmic_node,3,location,1,,2026-06-21 10:25:49.742934
+2,character,5,story,1,Destroyer,2026-06-21 10:34:56.037531
+3,faction,1,character,4,Home,2026-06-21 10:35:42.798491
+4,cosmic_node,6,artifact,1,ddd,2026-06-21 10:49:16.393296

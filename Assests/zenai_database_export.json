@@ -1,0 +1,409 @@
+{
+    "universes": [
+        {
+            "id": 1,
+            "uuid": "uni_5bead6a1602d4a60b37ea004d8d9d5f3",
+            "name": "Zen_Prime",
+            "description": "",
+            "canon_status": "canon",
+            "importance_score": 50,
+            "created_at": "2026-06-21T08:55:48.656859",
+            "updated_at": "2026-06-21T08:55:48.656867"
+        },
+        {
+            "id": 2,
+            "uuid": "uni_62956f8197004ed2908b8b90bd3208f3",
+            "name": "Test",
+            "description": "",
+            "canon_status": "canon",
+            "importance_score": 50,
+            "created_at": "2026-06-21T09:54:58.387365",
+            "updated_at": "2026-06-21T09:54:58.387373"
+        },
+        {
+            "id": 3,
+            "uuid": "uni_df2471fd228a4ce0b43a25d0d80557fe",
+            "name": "_SORA_",
+            "description": "Non Canon Experiments",
+            "canon_status": "non_canon",
+            "importance_score": 50,
+            "created_at": "2026-06-21T15:30:51.826655",
+            "updated_at": "2026-06-21T15:31:30.064338"
+        },
+        {
+            "id": 4,
+            "uuid": "uni_3d8693d08390447d8a3745256a377607",
+            "name": "Test_Experimental",
+            "description": "aaa",
+            "canon_status": "experimental",
+            "importance_score": 50,
+            "created_at": "2026-06-21T15:36:42.104508",
+            "updated_at": "2026-06-21T15:36:42.104520"
+        }
+    ],
+    "cosmic_nodes": [
+        {
+            "id": 1,
+            "uuid": "csm_e81f2b16a5834399932db96c311c7261",
+            "universe_id": 2,
+            "parent_id": null,
+            "name": "Opera_1",
+            "node_type": "black_hole",
+            "description": null,
+            "importance_score": 50,
+            "created_at": "2026-06-21T10:14:42.178035"
+        },
+        {
+            "id": 2,
+            "uuid": "csm_bb9e97592fe74a3f98311521206633bf",
+            "universe_id": 2,
+            "parent_id": null,
+            "name": "aas",
+            "node_type": "black_hole",
+            "description": null,
+            "importance_score": 50,
+            "created_at": "2026-06-21T10:14:46.443452"
+        },
+        {
+            "id": 3,
+            "uuid": "csm_2b7f98b5e01a4e84911ff46a578e10c8",
+            "universe_id": 1,
+            "parent_id": null,
+            "name": "dfdfssdf",
+            "node_type": "black_hole",
+            "description": null,
+            "importance_score": 50,
+            "created_at": "2026-06-21T10:15:08.365758"
+        },
+        {
+            "id": 4,
+            "uuid": "csm_fc46f28c5fd04679a434bfcc896d4cce",
+            "universe_id": 2,
+            "parent_id": null,
+            "name": "fsdfsd",
+            "node_type": "nebula",
+            "description": "123123",
+            "importance_score": 50,
+            "created_at": "2026-06-21T10:23:21.682418"
+        },
+        {
+            "id": 5,
+            "uuid": "csm_6f4c2e2d8daa4aa680e040a79a044ad4",
+            "universe_id": 1,
+            "parent_id": null,
+            "name": "fdsfsd",
+            "node_type": "black_hole",
+            "description": "dds",
+            "importance_score": 50,
+            "created_at": "2026-06-21T10:45:25.150519"
+        },
+        {
+            "id": 6,
+            "uuid": "csm_9e538afbf7f64e509c9bdf9796eb745f",
+            "universe_id": 1,
+            "parent_id": 3,
+            "name": "sdfsdf",
+            "node_type": "nebula",
+            "description": "sdfsdf",
+            "importance_score": 50,
+            "created_at": "2026-06-21T10:49:16.374907"
+        }
+    ],
+    "universes_connections": [],
+    "root_entities": [
+        {
+            "id": 1,
+            "uuid": "root_589a7b96e18644b1b81c8b7a4501bb34",
+            "name": "Zendrix_Tree",
+            "type": "Root Entity",
+            "description": "The Main Source of Powers In ZENDRIX",
+            "notes": "The Center and connector of all universes",
+            "importance_score": 100
+        },
+        {
+            "id": 2,
+            "uuid": "root_c2ce26988f96432e92558e22a2a817e8",
+            "name": "ssss",
+            "type": "Multiversal Anchor",
+            "description": "",
+            "notes": "",
+            "importance_score": 100
+        }
+    ],
+    "root_entity_links": [
+        {
+            "id": 4,
+            "root_entity_id": 2,
+            "entity_type": "universe",
+            "entity_id": 1,
+            "description": null
+        },
+        {
+            "id": 5,
+            "root_entity_id": 1,
+            "entity_type": "universe",
+            "entity_id": 2,
+            "description": null
+        },
+        {
+            "id": 6,
+            "root_entity_id": 1,
+            "entity_type": "universe",
+            "entity_id": 1,
+            "description": "The Creator watches over this realm"
+        }
+    ],
+    "characters": [
+        {
+            "id": 2,
+            "uuid": "chr_ff0f36d3a02a45139d1dbe720afaeba4",
+            "universe_id": 1,
+            "name": "Numerican",
+            "titles": "Light of universe",
+            "aliases": "Dark, X",
+            "species": "Cosmic Entity",
+            "traits_json": {},
+            "personality": "Villain",
+            "motivations": "Power",
+            "goals": "Rule his universe",
+            "ideology": "Above then all",
+            "canon_status": "canon",
+            "importance_score": 100,
+            "version": 1,
+            "parent_character_id": null,
+            "created_at": "2026-06-21T09:02:10.800764",
+            "updated_at": "2026-06-21T09:02:10.800769"
+        },
+        {
+            "id": 3,
+            "uuid": "chr_90d0a4d783c64f7dbb3a53bfa139e241",
+            "universe_id": 1,
+            "name": "dd",
+            "titles": null,
+            "aliases": null,
+            "species": null,
+            "traits_json": {},
+            "personality": null,
+            "motivations": null,
+            "goals": null,
+            "ideology": null,
+            "canon_status": "canon",
+            "importance_score": 50,
+            "version": 1,
+            "parent_character_id": null,
+            "created_at": "2026-06-21T09:40:22.671859",
+            "updated_at": "2026-06-21T09:40:22.671864"
+        },
+        {
+            "id": 4,
+            "uuid": "chr_7f2bf268e8794c89a81ac40c1ed58e40",
+            "universe_id": 2,
+            "name": "sdf",
+            "titles": null,
+            "aliases": null,
+            "species": null,
+            "traits_json": {},
+            "personality": null,
+            "motivations": null,
+            "goals": null,
+            "ideology": null,
+            "canon_status": "canon",
+            "importance_score": 50,
+            "version": 1,
+            "parent_character_id": null,
+            "created_at": "2026-06-21T09:55:24.677832",
+            "updated_at": "2026-06-21T09:55:24.677837"
+        },
+        {
+            "id": 5,
+            "uuid": "chr_115e7a86e5534320b3c54ddff6056d30",
+            "universe_id": 1,
+            "name": "ddd",
+            "titles": null,
+            "aliases": null,
+            "species": "gfdfd",
+            "traits_json": {},
+            "personality": null,
+            "motivations": null,
+            "goals": null,
+            "ideology": null,
+            "canon_status": "canon",
+            "importance_score": 49,
+            "version": 2,
+            "parent_character_id": null,
+            "created_at": "2026-06-21T10:00:08.091775",
+            "updated_at": "2026-06-21T10:34:57.247672"
+        }
+    ],
+    "factions": [
+        {
+            "id": 1,
+            "uuid": "fac_a73dd0b935274ca599e36795b989d652",
+            "universe_id": 1,
+            "name": "The council",
+            "founder_id": 2,
+            "ideology": null,
+            "description": null,
+            "canon_status": "canon",
+            "importance_score": 50
+        }
+    ],
+    "locations": [
+        {
+            "id": 1,
+            "uuid": "loc_8924190af6fb469999e067ee82cc3943",
+            "universe_id": 1,
+            "name": "The Dark_Hold",
+            "description": null,
+            "type": "island",
+            "canon_status": "canon",
+            "importance_score": 50
+        },
+        {
+            "id": 2,
+            "uuid": "loc_cc1e5326b6984e7d9f4fc0e03756fbae",
+            "universe_id": 2,
+            "name": "sdfsd",
+            "description": null,
+            "type": null,
+            "canon_status": "canon",
+            "importance_score": 50
+        }
+    ],
+    "powers": [],
+    "character_powers": [],
+    "events": [
+        {
+            "id": 1,
+            "uuid": "evt_0be35bf7aa9f4582b349884c5f299fa9",
+            "universe_id": 1,
+            "name": "Fall of Celetials",
+            "description": null,
+            "date_value": null,
+            "date_label": null,
+            "event_type": "rebirth",
+            "canon_status": "canon",
+            "importance_score": 50
+        }
+    ],
+    "event_participants": [],
+    "relationships": [
+        {
+            "id": 1,
+            "character_a_id": 2,
+            "character_b_id": 3,
+            "edge_type": "enemy",
+            "description": "Sworn enemies since the Great War"
+        }
+    ],
+    "artifacts": [
+        {
+            "id": 1,
+            "uuid": "art_38dd3a02a29c4ec895aab8bff0cd97c0",
+            "universe_id": 1,
+            "name": "Orb of Darkness",
+            "description": null,
+            "owner_id": null,
+            "powers_json": [],
+            "importance_score": 50
+        }
+    ],
+    "stories": [
+        {
+            "id": 1,
+            "uuid": "sty_f9fc03a2b3cf4c02822f0c4302ccce18",
+            "title": "Battle of Celestials vs Raven",
+            "summary": null,
+            "raw_text": null,
+            "story_mode": "canon",
+            "canon_status": "canon",
+            "universe_id": 1,
+            "created_at": "2026-06-21T09:04:19.790844"
+        },
+        {
+            "id": 2,
+            "uuid": "sty_daebb1bb1bfd4fdbaf537c99dc8635b0",
+            "title": "The War Between Celestials",
+            "summary": "In the depths of the multiverse, a war had been brewing between the creatures of hell and the celestial beings known as the Celetials. The air was filled with an eerie silence, as if the very fabric of reality was holding its breath in anticipation of the impending conflict.\n\nNumerican, a being of i",
+            "raw_text": "In the depths of the multiverse, a war had been brewing between the creatures of hell and the celestial beings known as the Celetials. The air was filled with an eerie silence, as if the very fabric of reality was holding its breath in anticipation of the impending conflict.\n\nNumerican, a being of immense power and wisdom, stood at the forefront of the Celetial army. His eyes gleamed with a fierce determination as he gazed out upon the gathering forces of hell. By his side stood dd, a skilled warrior with unmatched martial prowess, and ddd, a cunning strategist who had a knack for turning the tide of battle in their favor.\n\nThe Dark Hold, a foreboding fortress built upon a rocky outcropping of twisted magma, loomed in the distance. It was here that the creatures of hell had chosen to make their stand, and it was here that the final battle would soon take place.\n\nAs the Celetial army approached, a horde of daemonic creatures poured out of the Dark Hold's gates. They were twisted and corrupted, their bodies warped by the very essence of hell itself. The Celetials charged forward, their shimmering armor and radiant auras shining brightly as they clashed with the daemons.\n\nNumerican led the charge, his sword flashing through the chaos as he cut down daemon after daemon. dd and ddd fought alongside him, their movements a blur of steel and strategy as they carved a path through the enemy ranks.\n\nBut the creatures of hell would not be easily defeated. They launched wave after wave of daemons at the Celetial army, each one more ferocious and relentless than the last. The battle raged on for what seemed like an eternity, the outcome hanging precariously in the balance.\n\nAs the fight intensified, the very fabric of reality began to tear apart. Celestial energies clashed with the dark essence of hell, producing brilliant bolts of energy that shot across the battlefield like lightning. numerical, dd, and ddd found themselves standing at the epicenter of the conflict, their powers surging as they fought to hold back the tide of hell.\n\nDespite their valiant efforts, the Celetial army was beginning to falter. The daemons seemed endless, and the Celetials were starting to tire. But then, something unexpected happened. The Council, a group of powerful beings who had long maintained balance in the multiverse, appeared on the scene.\n\nWith a wave of their hands, the Council imbued the Celetials with a surge of fresh energy. The army rallied, their movements renewed with a newfound sense of hope. Numerican, dd, and ddd led the charge once more, their sword slices and spells cutting down daemon after daemon.\n\nThe tide of battle turned, and the creatures of hell began to falter. Their numbers dwindled, and their resolve weakened. In the end, it was Numerican who stood victorious, his sword raised high as the Daemons of hell lay defeated at his feet.\n\nThe War Between Celestials was at an end, and the multiverse was forever changed. The balance of power had shifted, and the creatures of hell would never again pose a threat to the Celetials. As for Numerican, he had proven himself a hero of the highest order, his name etched into the annals of history as a champion of the multiverse.",
+            "story_mode": "canon",
+            "canon_status": "canon",
+            "universe_id": 1,
+            "created_at": "2026-06-21T15:16:46.894855"
+        }
+    ],
+    "simulation_runs": [
+        {
+            "id": 1,
+            "title": "Emergence of a New Leader and Celestial Conflict",
+            "premise": "A new leader emerge, Dark but numerican the existing one had disputes with him , a battle between celestials emerged",
+            "affected_entities_json": [
+                {
+                    "entity_type": "faction",
+                    "entity_id": 1
+                },
+                {
+                    "entity_type": "character",
+                    "entity_id": 2
+                }
+            ],
+            "generated_outcomes_json": [
+                {
+                    "entity_id": 2,
+                    "entity_name": "Numerican",
+                    "entity_type": "character",
+                    "impact": "major",
+                    "outcome_text": "Numerican's leadership abilities are strained due to the disputes and Celestial battles, leading to a power struggle within The Council."
+                },
+                {
+                    "entity_id": 1,
+                    "entity_name": "The Council",
+                    "entity_type": "faction",
+                    "impact": "major",
+                    "outcome_text": "The Council's stability and authority are threatened by Numerican's weakened leadership and the emergence of a new power dynamic within the faction."
+                }
+            ],
+            "reasoning_text": "Given the premises, a new leader emerges, sparking a dispute with Numerican. This leads to a battle between Celestials, affecting the balance of power in the universe. Numerican's disputes with the new leader and the Celestial battle would strain his ability to lead The Council.",
+            "universe_id": 1,
+            "created_at": "2026-06-21T15:18:20.149404"
+        }
+    ],
+    "entity_links": [
+        {
+            "id": 1,
+            "source_entity_type": "cosmic_node",
+            "source_entity_id": 3,
+            "target_entity_type": "location",
+            "target_entity_id": 1,
+            "link_name": null,
+            "created_at": "2026-06-21T10:25:49.742934"
+        },
+        {
+            "id": 2,
+            "source_entity_type": "character",
+            "source_entity_id": 5,
+            "target_entity_type": "story",
+            "target_entity_id": 1,
+            "link_name": "Destroyer",
+            "created_at": "2026-06-21T10:34:56.037531"
+        },
+        {
+            "id": 3,
+            "source_entity_type": "faction",
+            "source_entity_id": 1,
+            "target_entity_type": "character",
+            "target_entity_id": 4,
+            "link_name": "Home",
+            "created_at": "2026-06-21T10:35:42.798491"
+        },
+        {
+            "id": 4,
+            "source_entity_type": "cosmic_node",
+            "source_entity_id": 6,
+            "target_entity_type": "artifact",
+            "target_entity_id": 1,
+            "link_name": "ddd",
+            "created_at": "2026-06-21T10:49:16.393296"
+        }
+    ]
+}

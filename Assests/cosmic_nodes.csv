@@ -1,0 +1,7 @@
+id,uuid,universe_id,parent_id,name,node_type,description,importance_score,created_at
+1,csm_e81f2b16a5834399932db96c311c7261,2,,Opera_1,black_hole,,50,2026-06-21 10:14:42.178035
+2,csm_bb9e97592fe74a3f98311521206633bf,2,,aas,black_hole,,50,2026-06-21 10:14:46.443452
+3,csm_2b7f98b5e01a4e84911ff46a578e10c8,1,,dfdfssdf,black_hole,,50,2026-06-21 10:15:08.365758
+4,csm_fc46f28c5fd04679a434bfcc896d4cce,2,,fsdfsd,nebula,123123,50,2026-06-21 10:23:21.682418
+5,csm_6f4c2e2d8daa4aa680e040a79a044ad4,1,,fdsfsd,black_hole,dds,50,2026-06-21 10:45:25.150519
+6,csm_9e538afbf7f64e509c9bdf9796eb745f,1,3,sdfsdf,nebula,sdfsdf,50,2026-06-21 10:49:16.374907

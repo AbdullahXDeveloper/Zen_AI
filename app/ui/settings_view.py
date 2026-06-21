@@ -16,7 +16,8 @@ Sections:
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QPushButton, QLineEdit, QComboBox,
-    QCheckBox, QSizePolicy, QStackedWidget, QApplication
+    QCheckBox, QSizePolicy, QStackedWidget, QApplication,
+    QFileDialog
 )
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QScreen
@@ -25,6 +26,7 @@ from app.database.db_init import get_session
 from app.database import crud
 from config.app_settings import get_app_settings
 from app.ai.claude_client import rebuild_client
+from app.database import exporter
 
 ACCENT = "#00ADB5"
 
@@ -222,6 +224,35 @@ class _RebuildIndexWorker(QThread):
                 self.done.emit(count)
             finally:
                 session.close()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.error.emit(str(e))
+        finally:
+            if 'session' in locals() and session: session.close()
+
+
+# ─── Data Export Worker ──────────────────────────────────
+class DataExportWorker(QThread):
+    done  = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, export_type: str, path: str):
+        super().__init__()
+        self.export_type = export_type
+        self.path = path
+
+    def run(self):
+        try:
+            from app.database.db_init import get_session as _gs
+            session = _gs()
+            if self.export_type == "json":
+                exporter.export_database_to_json(session, self.path)
+                self.done.emit(f"JSON Export successful!")
+            elif self.export_type == "csv":
+                exporter.export_database_to_csv(session, self.path)
+                self.done.emit(f"CSV Export successful!")
+            session.close()
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -536,6 +567,29 @@ class SettingsViewWidget(QWidget):
         db_row.addStretch()
         lay.addLayout(db_row)
 
+        # Export Database UI
+        lay.addSpacing(10)
+        export_row = QHBoxLayout()
+        
+        self._export_json_btn = QPushButton("📥  Export JSON")
+        self._export_json_btn.setFixedHeight(34)
+        self._export_json_btn.setStyleSheet(self._ghost_btn(ACCENT))
+        self._export_json_btn.clicked.connect(self._export_json)
+        
+        self._export_csv_btn = QPushButton("📥  Export CSV (Folder)")
+        self._export_csv_btn.setFixedHeight(34)
+        self._export_csv_btn.setStyleSheet(self._ghost_btn(ACCENT))
+        self._export_csv_btn.clicked.connect(self._export_csv)
+        
+        self._export_status = QLabel("")
+        self._export_status.setStyleSheet("color: #444; font-size: 11px; background: transparent; border: none;")
+        
+        export_row.addWidget(self._export_json_btn)
+        export_row.addWidget(self._export_csv_btn)
+        export_row.addWidget(self._export_status)
+        export_row.addStretch()
+        lay.addLayout(export_row)
+
         # ══════════════════════════════════════════
         # SAVE BUTTON
         # ══════════════════════════════════════════
@@ -808,6 +862,44 @@ class SettingsViewWidget(QWidget):
         self._rebuild_status.setStyleSheet(
             "color: #2ecc71; font-size: 11px; background: transparent; border: none;"
         )
+
+    # ── Export Slots ──────────────────────────────────────
+
+    def _export_json(self):
+        filepath, _ = QFileDialog.getSaveFileName(self, "Export Database to JSON", "zenai_database_export.json", "JSON Files (*.json)")
+        if not filepath:
+            return
+        self._export_status.setText("Exporting JSON... please wait.")
+        self._export_status.setStyleSheet(f"color: {ACCENT}; font-size: 11px; background: transparent; border: none;")
+        self._run_export_worker("json", filepath)
+        
+    def _export_csv(self):
+        folderpath = QFileDialog.getExistingDirectory(self, "Select Folder to Export CSVs")
+        if not folderpath:
+            return
+        self._export_status.setText("Exporting CSVs... please wait.")
+        self._export_status.setStyleSheet(f"color: {ACCENT}; font-size: 11px; background: transparent; border: none;")
+        self._run_export_worker("csv", folderpath)
+
+    def _run_export_worker(self, export_type: str, path: str):
+        self._export_json_btn.setEnabled(False)
+        self._export_csv_btn.setEnabled(False)
+        self._export_worker = DataExportWorker(export_type, path)
+        self._export_worker.done.connect(self._on_export_done)
+        self._export_worker.error.connect(self._on_export_error)
+        self._export_worker.start()
+
+    def _on_export_done(self, msg: str):
+        self._export_status.setText(f"✅ {msg}")
+        self._export_status.setStyleSheet("color: #2ecc71; font-size: 11px; background: transparent; border: none;")
+        self._export_json_btn.setEnabled(True)
+        self._export_csv_btn.setEnabled(True)
+
+    def _on_export_error(self, err: str):
+        self._export_status.setText(f"❌ Error: {err[:60]}")
+        self._export_status.setStyleSheet("color: #e74c3c; font-size: 11px; background: transparent; border: none;")
+        self._export_json_btn.setEnabled(True)
+        self._export_csv_btn.setEnabled(True)
 
 
     # ── Save ──────────────────────────────────────────────

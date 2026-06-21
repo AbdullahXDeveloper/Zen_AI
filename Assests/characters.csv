@@ -1,0 +1,5 @@
+id,uuid,universe_id,name,titles,aliases,species,traits_json,personality,motivations,goals,ideology,canon_status,importance_score,version,parent_character_id,created_at,updated_at
+2,chr_ff0f36d3a02a45139d1dbe720afaeba4,1,Numerican,Light of universe,"Dark, X",Cosmic Entity,{},Villain,Power,Rule his universe,Above then all,canon,100,1,,2026-06-21 09:02:10.800764,2026-06-21 09:02:10.800769
+3,chr_90d0a4d783c64f7dbb3a53bfa139e241,1,dd,,,,{},,,,,canon,50,1,,2026-06-21 09:40:22.671859,2026-06-21 09:40:22.671864
+4,chr_7f2bf268e8794c89a81ac40c1ed58e40,2,sdf,,,,{},,,,,canon,50,1,,2026-06-21 09:55:24.677832,2026-06-21 09:55:24.677837
+5,chr_115e7a86e5534320b3c54ddff6056d30,1,ddd,,,gfdfd,{},,,,,canon,49,2,,2026-06-21 10:00:08.091775,2026-06-21 10:34:57.247672
