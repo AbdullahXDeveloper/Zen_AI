@@ -1,201 +1,114 @@
-# ZenAI — The Living Archive of Zendrix
-
-> A desktop AI-powered worldbuilding operating system for the Zendrix multiverse paracosm.
-
-ZenAI is not a chatbot. It is a **second brain** — a local desktop application that stores, organizes, analyzes, visualizes, expands, and evolves an entire multiverse lore database, powered by Groq/Llama AI.
-
----
-
-## What is Zendrix?
-
-- **Zendrix Tree** — the master cosmic structure
-- **Fruits** — individual Universes hanging from the Tree, each with their own characters, factions, locations, events, and history
-- **Root Entities** — unique multiversal beings (OM_X, K, _LA, Zendrix Tree itself) that exist across ALL universes and are never duplicated
+<div align="center">
+  <img src="https://via.placeholder.com/150/00ADB5/FFFFFF?text=Zen+AI" alt="Zen AI Logo" width="120" height="120" />
+  <h1>Zen AI — The Cosmic Archive of Zendrix</h1>
+  <p><em>A desktop AI-powered worldbuilding operating system for the Zendrix multiverse paracosm.</em></p>
+</div>
 
 ---
 
-## Features (Planned)
+## 🌌 Project Overview
+**ZenAI** is not a simple chatbot. It is a **Second Brain** and an interactive, lore-aware operating system built to manage, expand, and visualize an entire fictional multiverse (Zendrix). 
 
-| Module | Feature | Status |
+Rather than relying on scattered text documents, ZenAI stores the lore in a robust relational database, indexes it via semantic vector search (FAISS), and allows the creator to converse with **Zen**, an omniscient AI archivist powered by blazing-fast inference engines (Groq/Llama-3).
+
+### What is Zendrix?
+- **Zendrix Tree:** The master cosmic structure holding all realities.
+- **Fruits (Universes):** Individual realities hanging from the Tree, each with their own characters, factions, and histories.
+- **Root Entities:** Unique, multiversal beings (e.g., OM_X, K, _LA) that exist across all universes and are never duplicated.
+
+---
+
+## 🚀 Features & Functions (Current Capabilities)
+
+### 1. Robust Relational Lore Database
+- A **21-table SQLite schema** that interlinks Characters, Factions, Locations, Artifacts, Events, and Stories.
+- Global unique identifiers (`UUIDs`) and canonical tracking (`canon`, `alt_timeline`, `non_canon`).
+
+### 2. Premium UI Shell (Glassmorphic OS)
+- A state-of-the-art **PySide6 desktop app** featuring a dark-mode, glassmorphic aesthetic.
+- **Dashboard:** Live analytics of the multiverse (universe counts, character cosmic weight bars, glowing system statuses).
+- **Cosmic View:** Interactive node-graph representations of universes and timelines.
+
+### 3. Lore-Aware AI Archivist (Zen)
+- Powered by **Groq**, Zen answers queries in real-time by performing Retrieval-Augmented Generation (RAG).
+- Zen acts as a poetic, omniscient guide that pulls actual context from the database to answer questions about specific characters, events, and lore.
+
+### 4. Advanced Vector Search (FAISS)
+- Semantic search capabilities using **Sentence Transformers** (`all-MiniLM-L6-v2`).
+- Entities are embedded in a high-dimensional vector space, allowing the AI to instantly recall relevant context even from vague queries.
+
+### 5. Bulk Data Import
+- `bulk_import.py` allows creators to rapidly ingest thousands of JSON-formatted data entries directly into the SQLite database and rebuilds the FAISS index automatically.
+
+---
+
+## 🔮 Future Scope (In Development)
+
+| Module | Planned Feature | Description |
 |---|---|---|
-| 1 | Database — 21-table SQLite schema + full CRUD + CSV I/O | ✅ Done |
-| 2 | Document Ingestion — DOCX/PDF/TXT → entity extraction pipeline | ❌ |
-| 3 | Knowledge Graph — NetworkX + PyVis, 4 graph types | ❌ |
-| 4 | Timeline Engine — multiverse → universe → character → event zoom | ❌ |
-| 5 | AI Core — Groq-powered lore generation, consistency checking, trait analysis | ✅ Done |
-| 6 | Vector Search — FAISS + Sentence Transformers semantic search | ✅ Done |
-| 7 | Wiki Generator — auto Wikipedia-style pages per entity | ❌ |
-| 8 | UI Shell — PySide6 desktop app with full sidebar navigation | ✅ Done |
-| 9 | Cosmic View — interactive Zendrix Tree visualization | ❌ |
-| 10 | Analytics — DB stats, growth charts, version history, canon management | ❌ |
-| 11 | Story Assistant — AI story/chapter/dialogue writer constrained to lore | ❌ |
-| 12 | World Simulation Engine — "what if X happened?" cascade predictor | ❌ |
+| **Knowledge Graph** | NetworkX + PyVis | Interactive mind-maps showing relationships between all characters and factions across universes. |
+| **Document Ingestion** | Pipeline Extraction | Upload DOCX/PDF files, and the AI will automatically extract entities, powers, and events to populate the DB. |
+| **Timeline Engine** | Multiverse Zoom | A visual chronometer allowing the creator to zoom from a multiverse epoch down to a specific character's birth. |
+| **Wiki Generator** | Auto-Documentation | Automatically generate Wikipedia-style HTML pages for every entity in the database. |
+| **Simulation Engine** | "What If" Scenarios | Run butterfly-effect simulations (e.g., "What if Character A killed Character B?") and let the AI predict the cosmic fallout. |
 
 ---
 
-## Tech Stack
+## 🛠️ Requirements & Setup
 
-| Layer | Technology |
-|---|---|
-| Language | Python 3.11+ |
-| Desktop UI | PySide6 |
-| Database | SQLite + SQLAlchemy |
-| Knowledge Graph | NetworkX |
-| Graph Visualization | PyVis + Plotly |
-| AI Backend | Groq API (Llama / Mixtral) |
-| Embeddings | Sentence Transformers |
-| Vector Search | FAISS |
-| Document Processing | python-docx, PyMuPDF |
+### Prerequisites
+- **Python 3.10+**
+- A **Groq API Key** (for fast AI inference)
+- Windows / macOS / Linux
 
----
-
-## Project Structure
-
-```
-ZenAI/
-├── app/
-│   ├── database/        # Schema, DB init, CRUD layer, CSV I/O
-│   ├── ai/              # Claude integration (lore gen, story writer, etc.)
-│   ├── graph/           # Knowledge graph engine
-│   ├── lore/            # Document ingestion pipeline
-│   ├── timeline/        # Timeline engine
-│   ├── search/          # FAISS vector search
-│   ├── wiki/            # Wiki page generator
-│   ├── simulation/      # World simulation engine
-│   └── ui/              # PySide6 UI shell + widgets
-├── data/
-│   ├── lore/            # Generated wiki pages
-│   ├── uploads/         # User-uploaded documents
-│   ├── cache/           # FAISS index cache
-│   └── zenai.db         # SQLite database (auto-created)
-├── config/              # .env + app settings
-├── docs/
-│   └── er_diagram.mmd   # Full ER diagram (view at mermaid.live)
-├── main.py              # App entry point
-└── requirements.txt
-```
-
----
-
-## Setup
-
-### 1. Clone the repo
-
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/your-username/ZenAI.git
 cd ZenAI
 ```
 
-### 2. Create virtual environment
-
+### 2. Set Up Virtual Environment
 ```bash
 python -m venv .venv
-
-# Windows
+# On Windows:
 .venv\Scripts\activate
-
-# macOS/Linux
+# On Mac/Linux:
 source .venv/bin/activate
 ```
 
-### 3. Install dependencies
-
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Set up environment variables
-
-Create a `config/.env` file:
-
+### 4. Configure Environment
+Create a `config/.env` file in the project root:
 ```env
-GROQ_API_KEY=your_api_key_here
+GROQ_API_KEY=gsk_your_api_key_here
 ```
 
-### 5. Initialize the database
-
+### 5. Initialize the Database
 ```bash
 python -m app.database.db_init
 ```
+*(This automatically creates the `data/zenai.db` SQLite file and seeds the Root Entities).*
 
-This creates `data/zenai.db` and seeds the 4 root entities (OM_X, K, _LA, Zendrix Tree).
-
-### 6. Run the app
-
+### 6. Run the Application
 ```bash
 python main.py
 ```
+*(On first launch, the app will download the embedding model and build the initial FAISS index).*
 
 ---
 
-## Database
-
-The schema has **21 tables** covering every aspect of the Zendrix multiverse:
-
-- Universes + inter-universe connections
-- Root Entities + their cross-universe links
-- Characters (with variant/alternate version support)
-- Factions, Locations, Artifacts, Powers
-- Events + participants
-- Character relationships (graph edges)
-- Stories + Simulation Runs
-- Lore Documents (ingestion pipeline)
-- Version History (full rollback support)
-- Tags + Notes (on any entity)
-
-Every major entity has:
-- `id` — auto-increment int (fast joins)
-- `uuid` — prefixed string e.g. `chr_8f4a1b2c...` (global reference)
-- `canon_status` — canon / non_canon / alt_timeline / experimental
-- `importance_score` — 1 to 100
-
-View the full ER diagram: paste `docs/er_diagram.mmd` into [mermaid.live](https://mermaid.live)
-
----
-
-## CSV Import / Export
-
-```python
-from app.database.db_init import get_session
-from app.database.csv_io import export_csv, import_csv, export_all_tables
-
-session = get_session()
-
-# Export one table
-export_csv(session, "characters", "data/exports/characters.csv")
-
-# Import from CSV
-import_csv(session, "characters", "data/imports/characters.csv")
-
-# Export everything
-export_all_tables(session, "data/exports/")
+## 🗃️ Bulk Import Data
+If you have generated lore using ChatGPT or Claude, format it as `bulk_data.json` and run:
+```bash
+python bulk_import.py
 ```
+This script will safely ingest the data, assign UUIDs, and **automatically rebuild the FAISS index** so the AI can immediately recall the new lore.
 
 ---
 
-## Naming Conventions
-
-| Entity | UUID Prefix |
-|---|---|
-| Character | `chr_` |
-| Universe | `uni_` |
-| Faction | `fac_` |
-| Location | `loc_` |
-| Event | `evt_` |
-| Artifact | `art_` |
-| Story | `sty_` |
-| Root Entity | `root_` |
-
-| Field | Values |
-|---|---|
-| `canon_status` | canon, non_canon, alt_timeline, experimental |
-| `story_mode` | canon, non_canon, what_if, alt_timeline, rpg_sim |
-| `edge_type` | friend, enemy, family, mentor, student, created, destroyed, owns, located_in, participated_in |
-| `event_type` | birth, death, rebirth, war, other |
-| `importance_score` | 1–100 (OM_X = 100, Raven ≈ 75, random soldier ≈ 5) |
-
----
-
-## License
-
-MIT License — see `LICENSE` for details.
+## 📄 License
+MIT License. Built for the Zendrix Cosmic Archive.
