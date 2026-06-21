@@ -12,7 +12,7 @@ Shows:
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QFrame, QScrollArea, QGridLayout, QPushButton,
-    QSizePolicy, QSpacerItem
+    QSizePolicy, QSpacerItem, QGraphicsDropShadowEffect
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QFont, QColor
@@ -108,8 +108,8 @@ class StatsWorker(QThread):
 class StatCard(QFrame):
     COLORS = {
         "universes":     "#00ADB5",
-        "characters":    "#9b59b6",
-        "factions":      "#e67e22",
+        "characters":    "#C77DFF",
+        "factions":      "#f39c12",
         "locations":     "#2ecc71",
         "events":        "#e74c3c",
         "artifacts":     "#f1c40f",
@@ -138,45 +138,53 @@ class StatCard(QFrame):
         color      = self.COLORS.get(key, "#00ADB5")
         icon       = self.ICONS.get(key, "◈")
 
-        self.setFixedSize(170, 110)
+        self.setFixedSize(180, 115)
         self.setStyleSheet(f"""
             QFrame {{
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #141414, stop:1 #1A1A1A
+                    stop:0 #1E1E1E, stop:1 #111111
                 );
-                border: 1px solid #222;
+                border: 1px solid #2A2A2A;
                 border-top: 3px solid {color};
-                border-radius: 10px;
+                border-radius: 12px;
             }}
             QFrame:hover {{
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #1A1A1A, stop:1 #222222
+                    stop:0 #252525, stop:1 #1A1A1A
                 );
-                border: 1px solid {color}44;
+                border: 1px solid {color}66;
                 border-top: 3px solid {color};
             }}
         """)
 
+        # Add drop shadow
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(15)
+        shadow.setXOffset(0)
+        shadow.setYOffset(4)
+        shadow.setColor(QColor(0, 0, 0, 150))
+        self.setGraphicsEffect(shadow)
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(4)
 
         # Icon + Label row
         top = QHBoxLayout()
         icon_lbl = QLabel(icon)
         icon_lbl.setStyleSheet(
-            f"font-size: 18px; color: {color}; background: transparent; border: none;"
+            f"font-size: 22px; color: {color}; background: transparent; border: none; opacity: 0.8;"
         )
         lbl = QLabel(label)
         lbl.setStyleSheet(
-            "font-size: 11px; color: #555; font-weight: 600; "
+            "font-size: 11px; color: #777; font-weight: 800; "
             "letter-spacing: 1px; background: transparent; border: none;"
         )
-        top.addWidget(icon_lbl)
         top.addWidget(lbl)
         top.addStretch()
+        top.addWidget(icon_lbl)
         layout.addLayout(top)
 
         layout.addStretch()
@@ -184,8 +192,8 @@ class StatCard(QFrame):
         # Value
         self.value_lbl = QLabel(str(value))
         self.value_lbl.setStyleSheet(
-            f"font-size: 36px; font-weight: 900; color: {color}; "
-            "background: transparent; border: none;"
+            f"font-size: 42px; font-weight: 900; color: #FFFFFF; "
+            "background: transparent; border: none; letter-spacing: -1px;"
         )
         layout.addWidget(self.value_lbl)
 
@@ -197,14 +205,25 @@ class StatCard(QFrame):
 # ─────────────────────────────────────────────────────────
 # Section header
 # ─────────────────────────────────────────────────────────
-def _section_header(text: str) -> QLabel:
+def _section_header(text: str) -> QWidget:
+    w = QWidget()
+    w.setFixedHeight(30)
+    w.setStyleSheet("background: transparent; border: none;")
+    l = QHBoxLayout(w)
+    l.setContentsMargins(0, 0, 0, 0)
+    l.setSpacing(8)
+    
+    dot = QLabel("✦")
+    dot.setStyleSheet("color: #00ADB5; font-size: 14px; font-weight: 900; background: transparent;")
     lbl = QLabel(text)
     lbl.setStyleSheet(
-        "color: #00ADB5; font-size: 11px; font-weight: 700; "
-        "letter-spacing: 3px; padding-bottom: 8px; "
-        "background: transparent; border-bottom: 1px solid #1E1E1E;"
+        "color: #00ADB5; font-size: 12px; font-weight: 800; "
+        "letter-spacing: 3px; background: transparent;"
     )
-    return lbl
+    l.addWidget(dot)
+    l.addWidget(lbl)
+    l.addStretch()
+    return w
 
 
 # ─────────────────────────────────────────────────────────
@@ -214,30 +233,36 @@ def _universe_pill(data: dict) -> QFrame:
     canon_colors = {
         "canon":        "#00ADB5",
         "non_canon":    "#e74c3c",
-        "alt_timeline": "#9b59b6",
-        "experimental": "#f39c12",
+        "alt_timeline": "#F39C12",
+        "experimental": "#9B59B6",
     }
     c = canon_colors.get(data["canon"], "#00ADB5")
     f = QFrame()
+    f.setFixedHeight(48)
     f.setStyleSheet(f"""
         QFrame {{
-            background: #141414;
-            border: 1px solid #222;
-            border-left: 3px solid {c};
-            border-radius: 6px;
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid #262626;
+            border-left: 4px solid {c};
+            border-radius: 8px;
+        }}
+        QFrame:hover {{
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid {c}66;
+            border-left: 4px solid {c};
         }}
     """)
     lay = QHBoxLayout(f)
-    lay.setContentsMargins(12, 8, 12, 8)
+    lay.setContentsMargins(16, 0, 16, 0)
 
-    name = QLabel(f"🌐  {data['name']}")
+    name = QLabel(f"{{data['name']}}")
     name.setStyleSheet(
-        "color: #CCCCCC; font-size: 13px; font-weight: 600; "
+        "color: #EEEEEE; font-size: 13px; font-weight: 700; "
         "background: transparent; border: none;"
     )
-    score = QLabel(f"★ {data['score']}")
+    score = QLabel(f"★ {{data['score']}}")
     score.setStyleSheet(
-        f"color: {c}; font-size: 11px; font-weight: 700; "
+        f"color: {c}; font-size: 12px; font-weight: 800; "
         "background: transparent; border: none;"
     )
     lay.addWidget(name)
@@ -251,46 +276,57 @@ def _universe_pill(data: dict) -> QFrame:
 # ─────────────────────────────────────────────────────────
 def _char_row(data: dict) -> QFrame:
     f = QFrame()
+    f.setFixedHeight(54)
     f.setStyleSheet("""
         QFrame {
-            background: #141414;
-            border: 1px solid #1E1E1E;
-            border-radius: 6px;
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid #262626;
+            border-radius: 8px;
         }
-        QFrame:hover { background: #1A1A1A; border-color: #333; }
+        QFrame:hover { background: rgba(30, 30, 30, 0.9); border: 1px solid #C77DFF66; }
     """)
     lay = QHBoxLayout(f)
-    lay.setContentsMargins(14, 8, 14, 8)
-    lay.setSpacing(10)
+    lay.setContentsMargins(16, 0, 16, 0)
+    lay.setSpacing(12)
 
-    name = QLabel(f"👤  {data['name']}")
-    name.setStyleSheet(
-        "color: #DDDDDD; font-size: 13px; font-weight: 600; "
-        "background: transparent; border: none;"
-    )
+    # Avatar circle placeholder
+    avatar = QLabel("👤")
+    avatar.setFixedSize(32, 32)
+    avatar.setAlignment(Qt.AlignCenter)
+    avatar.setStyleSheet("background: #1A1A1A; border-radius: 16px; font-size: 16px; border: 1px solid #333;")
+
+    # Details
+    det_lay = QVBoxLayout()
+    det_lay.setSpacing(2)
+    det_lay.setAlignment(Qt.AlignVCenter)
+    name = QLabel(data['name'])
+    name.setStyleSheet("color: #FFFFFF; font-size: 13px; font-weight: 700; background: transparent; border: none;")
     species = QLabel(data["species"])
-    species.setStyleSheet(
-        "color: #444; font-size: 11px; background: transparent; border: none;"
-    )
+    species.setStyleSheet("color: #777777; font-size: 11px; background: transparent; border: none;")
+    det_lay.addWidget(name)
+    det_lay.addWidget(species)
 
     # Importance bar
     bar_container = QFrame()
-    bar_container.setFixedSize(80, 14)
+    bar_container.setFixedSize(90, 20)
     bar_container.setStyleSheet("background: transparent; border: none;")
-    bar_bg = QFrame(bar_container)
-    bar_bg.setGeometry(0, 4, 80, 6)
-    bar_bg.setStyleSheet("background: #222; border-radius: 3px;")
-    bar_fill = QFrame(bar_container)
-    fill_w = max(2, int(80 * data["score"] / 100))
-    bar_fill.setGeometry(0, 4, fill_w, 6)
-    bar_fill.setStyleSheet("background: #9b59b6; border-radius: 3px;")
-    score_lbl = QLabel(str(data["score"]), bar_container)
-    score_lbl.setGeometry(0, 0, 80, 6)
+    
+    score_lbl = QLabel(f"{{data['score']}} / 100", bar_container)
+    score_lbl.setGeometry(0, 0, 90, 12)
     score_lbl.setAlignment(Qt.AlignRight)
-    score_lbl.setStyleSheet("color: #666; font-size: 8px; background: transparent;")
+    score_lbl.setStyleSheet("color: #888; font-size: 9px; font-weight: 700; background: transparent;")
+    
+    bar_bg = QFrame(bar_container)
+    bar_bg.setGeometry(0, 14, 90, 6)
+    bar_bg.setStyleSheet("background: #1A1A1A; border-radius: 3px;")
+    
+    bar_fill = QFrame(bar_container)
+    fill_w = max(4, int(90 * data["score"] / 100))
+    bar_fill.setGeometry(0, 14, fill_w, 6)
+    bar_fill.setStyleSheet("background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8e44ad, stop:1 #C77DFF); border-radius: 3px;")
 
-    lay.addWidget(name)
-    lay.addWidget(species)
+    lay.addWidget(avatar)
+    lay.addLayout(det_lay)
     lay.addStretch()
     lay.addWidget(bar_container)
     return f
@@ -301,19 +337,34 @@ def _char_row(data: dict) -> QFrame:
 # ─────────────────────────────────────────────────────────
 def _status_dot(online: bool, label: str) -> QFrame:
     f = QFrame()
-    f.setStyleSheet("background: transparent; border: none;")
+    f.setFixedHeight(36)
+    c = "#2ecc71" if online else "#e74c3c"
+    f.setStyleSheet(f"""
+        QFrame {{
+            background: rgba(20,20,20,0.8);
+            border: 1px solid #222;
+            border-radius: 6px;
+        }}
+        QFrame:hover {{ border-color: {c}44; }}
+    """)
     lay = QHBoxLayout(f)
-    lay.setContentsMargins(0, 0, 0, 0)
-    lay.setSpacing(8)
+    lay.setContentsMargins(12, 0, 12, 0)
+    lay.setSpacing(10)
 
     dot = QLabel("●")
     dot.setStyleSheet(
-        f"color: {'#2ecc71' if online else '#e74c3c'}; "
-        "font-size: 10px; background: transparent; border: none;"
+        f"color: {c}; font-size: 14px; background: transparent; border: none;"
     )
+    # Add a glowing shadow to dot
+    shadow = QGraphicsDropShadowEffect(dot)
+    shadow.setBlurRadius(10)
+    shadow.setColor(QColor(c))
+    shadow.setOffset(0)
+    dot.setGraphicsEffect(shadow)
+
     lbl = QLabel(label)
     lbl.setStyleSheet(
-        "color: #888; font-size: 12px; background: transparent; border: none;"
+        "color: #999; font-size: 12px; font-weight: 600; background: transparent; border: none;"
     )
     lay.addWidget(dot)
     lay.addWidget(lbl)
