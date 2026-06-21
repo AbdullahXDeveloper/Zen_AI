@@ -732,6 +732,7 @@ class NodeFormPanel(QFrame):
 
         lay.addWidget(_lbl("NODE TYPE"))
         self.type_combo = QComboBox()
+        self.type_combo.setEditable(True)
         for nt in NODE_TYPES:
             icon = NODE_ICONS.get(nt, "📦")
             self.type_combo.addItem(f"{icon}  {nt.replace('_', ' ').title()}", nt)
@@ -818,10 +819,15 @@ class NodeFormPanel(QFrame):
         if not name:
             self._status.setText("⚠  Name required!")
             return
+        
+        c_type = self.type_combo.currentText()
+        if "  " in c_type: 
+            c_type = c_type.split("  ", 1)[1].lower().replace(" ", "_")
+        
         payload = {
             "universe_id":      self._universe_id,
             "name":             name,
-            "node_type":        self.type_combo.currentData(),
+            "node_type":        c_type,
             "description":      self.desc_input.toPlainText().strip() or None,
             "importance_score": self.score_slider.value(),
             "parent_id":        self._parent_id,
@@ -920,11 +926,26 @@ class UniverseTreePanel(QWidget):
         """)
         add_root_btn.clicked.connect(self._add_root_node)
 
+        self._add_child_btn = QPushButton("+  Add Child Node")
+        self._add_child_btn.setFixedHeight(32)
+        self._add_child_btn.setStyleSheet("""
+            QPushButton {
+                background: #00ADB5; color: #000;
+                border: none; border-radius: 6px;
+                font-size: 12px; font-weight: 700; padding: 0 16px;
+            }
+            QPushButton:hover { background: #00E5FF; }
+            QPushButton:disabled { background: #0A2A2B; color: #333; }
+        """)
+        self._add_child_btn.clicked.connect(self._add_child_node)
+        self._add_child_btn.setEnabled(False)
+
         bar_lay.addWidget(back_btn)
         bar_lay.addSpacing(8)
         bar_lay.addWidget(self._uni_label)
         bar_lay.addStretch()
         bar_lay.addWidget(self._tree_status)
+        bar_lay.addWidget(self._add_child_btn)
         bar_lay.addWidget(add_root_btn)
         left_lay.addWidget(top_bar)
 
@@ -960,6 +981,7 @@ class UniverseTreePanel(QWidget):
         self._tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self._tree.customContextMenuRequested.connect(self._show_context_menu)
         self._tree.itemDoubleClicked.connect(self._on_item_double_clicked)
+        self._tree.itemSelectionChanged.connect(self._on_tree_selection)
         
         # Override palette to ensure branches are visible in dark mode
         pal = self._tree.palette()
@@ -1038,6 +1060,18 @@ class UniverseTreePanel(QWidget):
         self._tree_status.setText(f"{count} node{'s' if count != 1 else ''}")
 
     # ── Context menu & actions ─────────────────────────────
+
+    def _on_tree_selection(self):
+        items = self._tree.selectedItems()
+        self._add_child_btn.setEnabled(len(items) > 0)
+
+    def _add_child_node(self):
+        items = self._tree.selectedItems()
+        if not items:
+            return
+        node_data = items[0].data(0, Qt.UserRole)
+        self._form_panel.load_node(None, parent_id=node_data["id"])
+        self._form_panel.show()
 
     def _show_context_menu(self, pos):
         item = self._tree.itemAt(pos)

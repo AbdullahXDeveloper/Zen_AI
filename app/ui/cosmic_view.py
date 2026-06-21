@@ -253,6 +253,34 @@ class CosmicDataWorker(QThread):
                     "color": {"color": COLORS["story"] + "15", "highlight": COLORS["story"] + "55"},
                     "width": 0.5, "dashes": True
                 })
+            # ── Universal Links (EntityLinks) ────────────
+            from app.database.models import EntityLink
+            all_links = session.query(EntityLink).all()
+            prefix_map = {
+                "universe": "uni", "character": "chr", "faction": "fac",
+                "location": "loc", "artifact": "art", "event": "evt",
+                "story": "sto", "cosmic_node": "cnode", "root_entity": "root"
+            }
+            valid_node_ids = set([n["id"] for n in nodes])
+            valid_node_ids.add("center")
+
+            for el in all_links:
+                src_p = prefix_map.get(el.source_entity_type)
+                tgt_p = prefix_map.get(el.target_entity_type)
+                if not src_p or not tgt_p: continue
+                
+                src_id = f"{src_p}_{el.source_entity_id}"
+                tgt_id = f"{tgt_p}_{el.target_entity_id}"
+                
+                if src_id in valid_node_ids and tgt_id in valid_node_ids:
+                    edges.append({
+                        "from": src_id, "to": tgt_id,
+                        "label": el.link_name or "Linked",
+                        "color": {"color": "#00ADB544", "highlight": "#00E5FF"},
+                        "width": 1.2,
+                        "dashes": True,
+                        "font": {"color": "#00ADB5", "size": 9, "background": "rgba(0,0,0,0.5)"}
+                    })
 
             session.close()
             self.done.emit({"nodes": nodes, "edges": edges})
