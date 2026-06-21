@@ -116,6 +116,7 @@ class ZenMainWindow(QMainWindow):
             ("Stories",           "📖", StoriesViewWidget),
             ("─────────────", "",  None),          # divider
             ("Cosmic View",      "✴", CosmicViewWidget),
+            ("Knowledge Graph",  "🕸", GraphViewWidget),
             ("Timeline",          "⏱", TimelineViewWidget),
             ("─────────────", "",  None),          # divider
             ("AI Assistant",      "❆", AIChatWidget),

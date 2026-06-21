@@ -82,13 +82,18 @@ class GraphViewWidget(QWidget):
 
         # ── Top Control Bar ──
         control_bar = QFrame()
-        control_bar.setFixedHeight(60)
-        control_bar.setStyleSheet(
-            "background-color: #111111; border-bottom: 1px solid #222222;"
-        )
+        control_bar.setFixedHeight(70)
+        control_bar.setStyleSheet("""
+            QFrame {
+                background-color: rgba(20, 20, 20, 0.9);
+                border-bottom: 1px solid #333333;
+                border-bottom-left-radius: 15px;
+                border-bottom-right-radius: 15px;
+            }
+        """)
         bar_layout = QHBoxLayout(control_bar)
-        bar_layout.setContentsMargins(20, 0, 20, 0)
-        bar_layout.setSpacing(12)
+        bar_layout.setContentsMargins(25, 0, 25, 0)
+        bar_layout.setSpacing(15)
 
         # Graph type dropdown
         type_label = QLabel("Graph:")
@@ -118,14 +123,14 @@ class GraphViewWidget(QWidget):
         self.entity_frame.hide()
 
         # Generate button
-        self.generate_btn = QPushButton("⬡  Generate Graph")
-        self.generate_btn.setFixedHeight(36)
-        self.generate_btn.setStyleSheet(_btn_style("#00ADB5"))
+        self.generate_btn = QPushButton("✦  Generate Graph")
+        self.generate_btn.setFixedHeight(40)
+        self.generate_btn.setStyleSheet(_btn_style())
         self.generate_btn.clicked.connect(self._generate_graph)
 
         # Status label
         self.status_label = QLabel("Ready")
-        self.status_label.setStyleSheet("color: #444444; font-size: 12px;")
+        self.status_label.setStyleSheet("color: #00ADB5; font-size: 13px; font-weight: 700;")
 
         bar_layout.addWidget(type_label)
         bar_layout.addWidget(self.graph_type_combo)
@@ -340,33 +345,35 @@ class GraphViewWidget(QWidget):
 def _combo_style():
     return """
         QComboBox {
-            background-color: #1A1A1A;
-            color: #CCCCCC;
-            border: 1px solid #333333;
-            border-radius: 5px;
-            padding: 5px 10px;
-            font-size: 13px;
-            min-width: 160px;
+            background-color: #121212;
+            color: #EEEEEE;
+            border: 1px solid #2A2A2A;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
+            min-width: 180px;
         }
-        QComboBox:hover { border-color: #00ADB5; }
+        QComboBox:hover { border-color: #00ADB5; background-color: #1A1A1A; }
         QComboBox QAbstractItemView {
             background-color: #1A1A1A;
             color: #CCCCCC;
             selection-background-color: #00ADB5;
+            border-radius: 8px;
         }
     """
 
-def _btn_style(color):
-    return f"""
-        QPushButton {{
-            background-color: {color};
-            color: #000000;
+def _btn_style():
+    return """
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #00ADB5, stop:1 #008C9E);
+            color: #111111;
+            font-weight: 800;
+            letter-spacing: 1px;
             border: none;
-            border-radius: 6px;
-            padding: 0 18px;
-            font-size: 13px;
-            font-weight: 700;
-        }}
-        QPushButton:hover {{ background-color: #00C9D4; }}
-        QPushButton:disabled {{ background-color: #1A3A3A; color: #555; }}
+            border-radius: 10px;
+            padding: 0 24px;
+            font-size: 14px;
+        }
+        QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #00d2dc, stop:1 #00a4b8); }
+        QPushButton:disabled { background: #333; color: #666; }
     """
