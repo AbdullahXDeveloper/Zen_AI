@@ -8,7 +8,7 @@ from app.ui.main_window import ZenMainWindow
 
 def main():
     print("[Zen AI] Booting up Operating System...")
-    init_db()
+    init_db(seed_root_entities=False)
 
     # Load (or build) the FAISS vector index so RAG / semantic search works.
     # Without this the index stays empty and the AI answers from general

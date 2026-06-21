@@ -14,6 +14,7 @@ from PySide6.QtGui import QFont, QIntValidator
 
 from app.database.db_init import get_session
 from app.database import crud
+from app.utils.dashboard_generator import generate_entity_dashboard
 
 
 # ─────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ class SaveRootEntityWorker(QThread):
             else:
                 crud.create_root_entity(session, **self.data)
             session.close()
+            generate_entity_dashboard()
             self.done.emit("ok")
         except Exception as e:
             import traceback
@@ -95,6 +97,7 @@ class DeleteRootEntityWorker(QThread):
             success = crud.delete_root_entity(session, self.entity_id)
             session.close()
             if success:
+                generate_entity_dashboard()
                 self.done.emit("ok")
             else:
                 self.error.emit("Entity not found or could not be deleted.")
