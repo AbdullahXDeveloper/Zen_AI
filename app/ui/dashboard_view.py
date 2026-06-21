@@ -92,7 +92,7 @@ class StatsWorker(QThread):
                 from config.app_settings import get_app_settings
                 _settings = get_app_settings()
                 _ollama_base = getattr(_settings, "ollama_url", "http://localhost:11434").rstrip("/")
-                r = _req.get(f"{_ollama_base}/api/tags", timeout=2)
+                r = _req.get(f"{_ollama_base}/api/tags", timeout=0.1)
                 stats["ollama_online"] = r.status_code == 200
             except Exception:
                 stats["ollama_online"] = False
@@ -441,6 +441,30 @@ def _hero_banner() -> QFrame:
 
     lay.addWidget(greeting)
     lay.addWidget(sub)
+    
+    # Adding a subtle breathing animation to the hero banner
+    effect = QGraphicsOpacityEffect(f)
+    f.setGraphicsEffect(effect)
+    anim = QPropertyAnimation(effect, b"opacity")
+    anim.setDuration(3000)
+    anim.setStartValue(0.7)
+    anim.setEndValue(1.0)
+    anim.setEasingCurve(QEasingCurve.InOutSine)
+    
+    # We need to keep a reference to the animation so it doesn't get garbage collected
+    f._breathing_anim = QSequentialAnimationGroup()
+    f._breathing_anim.addAnimation(anim)
+    
+    anim_reverse = QPropertyAnimation(effect, b"opacity")
+    anim_reverse.setDuration(3000)
+    anim_reverse.setStartValue(1.0)
+    anim_reverse.setEndValue(0.7)
+    anim_reverse.setEasingCurve(QEasingCurve.InOutSine)
+    f._breathing_anim.addAnimation(anim_reverse)
+    
+    f._breathing_anim.setLoopCount(-1) # Loop indefinitely
+    f._breathing_anim.start()
+    
     return f
 
 
@@ -559,27 +583,22 @@ class DashboardWidget(QWidget):
         left.addLayout(self._universe_col)
         left.addStretch()
 
-        # Middle: Top Characters
+        # Middle: Root Entities
         mid = QVBoxLayout()
         mid.setSpacing(8)
-        mid.addWidget(_section_header("TOP CHARACTERS"))
-        self._char_col = QVBoxLayout()
-        self._char_col.setSpacing(6)
-        mid.addLayout(self._char_col)
+        mid.addWidget(_section_header("ROOT ENTITIES"))
+        self._root_col = QVBoxLayout()
+        self._root_col.setSpacing(6)
+        mid.addLayout(self._root_col)
         mid.addStretch()
 
-        # Right: System Status + Root Entities
+        # Right: System Status
         right = QVBoxLayout()
         right.setSpacing(8)
         right.addWidget(_section_header("SYSTEM STATUS"))
         self._status_col = QVBoxLayout()
         self._status_col.setSpacing(6)
         right.addLayout(self._status_col)
-        right.addSpacing(16)
-        right.addWidget(_section_header("ROOT ENTITIES"))
-        self._root_col = QVBoxLayout()
-        self._root_col.setSpacing(6)
-        right.addLayout(self._root_col)
         right.addStretch()
 
         cols.addLayout(left, 3)
@@ -638,16 +657,7 @@ class DashboardWidget(QWidget):
         else:
             self._universe_col.addWidget(self._empty_label("Koi universe nahi"))
 
-        # Characters
-        self._clear_layout(self._char_col)
-        chars = data.get("top_characters", [])
-        if chars:
-            for c in chars:
-                self._char_col.addWidget(_char_row(c))
-        else:
-            self._char_col.addWidget(self._empty_label("Koi character nahi"))
-
-        # System status
+        # System status (right column)
         self._clear_layout(self._status_col)
         ollama_ok = data.get("ollama_online", False)
         faiss_n   = data.get("faiss_vectors", 0)
@@ -663,36 +673,49 @@ class DashboardWidget(QWidget):
             _status_dot(True, "SQLite DB  (Connected)")
         )
 
-        # Root Entities
+        # Root Entities (middle column)
         self._clear_layout(self._root_col)
         roots = data.get("root_entities_list", [])
         if roots:
             for r in roots:
                 row = QFrame()
-                row.setFixedHeight(34)
+                row.setFixedHeight(50)
                 row.setStyleSheet("""
                     QFrame {
-                        background: rgba(255,215,0,0.04);
-                        border: 1px solid #1A1A1A;
-                        border-radius: 6px;
+                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                            stop:0 rgba(255,215,0,0.06), stop:1 rgba(18,18,18,0.95));
+                        border: 1px solid #1E1E1E;
+                        border-left: 3px solid #FFD700;
+                        border-radius: 10px;
                     }
-                    QFrame:hover { border-color: #FFD70033; }
+                    QFrame:hover {
+                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                            stop:0 rgba(255,215,0,0.10), stop:1 rgba(28,28,28,0.95));
+                        border: 1px solid #FFD70044;
+                        border-left: 3px solid #FFD700;
+                    }
                 """)
                 rl = QHBoxLayout(row)
-                rl.setContentsMargins(12, 0, 12, 0)
+                rl.setContentsMargins(16, 0, 16, 0)
                 n_lbl = QLabel(f"✦  {r['name']}")
                 n_lbl.setStyleSheet(
-                    "color: #FFD700; font-size: 12px; font-weight: 700; "
+                    "color: #FFD700; font-size: 13px; font-weight: 700; "
                     "background: transparent; border: none;"
                 )
                 t_lbl = QLabel(r['type'])
                 t_lbl.setStyleSheet(
-                    "color: #555; font-size: 10px; font-weight: 600; "
+                    "color: #777; font-size: 11px; font-weight: 600; "
+                    "background: transparent; border: none;"
+                )
+                s_lbl = QLabel(f"★ {r['score']}")
+                s_lbl.setStyleSheet(
+                    "color: #FFD700; font-size: 12px; font-weight: 800; "
                     "background: transparent; border: none;"
                 )
                 rl.addWidget(n_lbl)
-                rl.addStretch()
                 rl.addWidget(t_lbl)
+                rl.addStretch()
+                rl.addWidget(s_lbl)
                 self._root_col.addWidget(row)
         else:
             self._root_col.addWidget(self._empty_label("Koi root entity nahi"))

@@ -158,8 +158,8 @@ def export_graph_to_html(nx_graph, output_path):
     """Converts a NetworkX graph to a PyVis interactive HTML file."""
     net = Network(height='800px', width='100%', bgcolor='#1E1E1E', font_color='white', directed=False)
     
-    # Configure Physics / Layout
-    net.force_atlas_2based()
+    # Configure Physics / Layout for more spaced-out nodes
+    net.force_atlas_2based(spring_length=250, overlap=0.5, damping=0.09)
     
     # Optional: Customize colors based on groups
     group_colors = {
