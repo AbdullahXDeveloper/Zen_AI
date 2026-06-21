@@ -25,6 +25,7 @@ from PySide6.QtGui import QFont, QIntValidator
 
 from app.database.db_init import get_session
 from app.database import crud
+from app.utils.dashboard_generator import generate_entity_dashboard
 
 # ─────────────────────────────────────────────────────────
 # Canon status colours
@@ -114,7 +115,8 @@ class SaveUniverseWorker(QThread):
             if root_entity_id:
                 crud.create_root_entity_link(session, root_entity_id=root_entity_id, entity_type="universe", entity_id=uid)
                 
-            session.close()
+            session.commit()
+            generate_entity_dashboard()
             self.done.emit("ok")
         except Exception as e:
             import traceback
@@ -135,8 +137,13 @@ class DeleteUniverseWorker(QThread):
     def run(self):
         try:
             session = get_session()
+            # Clean up RootEntityLinks FIRST to prevent stale ghost links
+            existing_links = crud.list_root_entity_links(session, entity_type="universe", entity_id=self.universe_id)
+            for link in existing_links:
+                crud.delete_root_entity_link(session, link.id)
             crud.delete_universe(session, self.universe_id)
-            session.close()
+            session.commit()
+            generate_entity_dashboard()
             self.done.emit("ok")
         except Exception as e:
             import traceback
@@ -639,6 +646,10 @@ class UniversesViewWidget(QWidget):
         self._form_panel.hide()
         root.addWidget(self._form_panel, 0)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Reload to fetch fresh Root Entities (in case they were added/deleted in another tab)
+        self._load()
 
     # ── Panel open/close ──────────────────────────────────
 

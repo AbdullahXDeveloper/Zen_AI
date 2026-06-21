@@ -772,6 +772,10 @@ class CharactersViewWidget(QWidget):
         self._form_panel.hide()
         root.addWidget(self._form_panel, 0)   # stretch=0 so panel is only as wide as needed
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Refresh universe list every time tab is opened (picks up newly added universes)
+        self._load_universes()
 
     # ── Universe loading ───────────────────────────────────
 

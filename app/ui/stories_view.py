@@ -514,6 +514,10 @@ class StoriesViewWidget(QWidget):
         self._form_panel.hide()
         root.addWidget(self._form_panel, 0)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Refresh universe list every time tab is opened
+        self._load_universes()
 
     def _load_universes(self):
         self._uni_worker = LoadUniversesForStoWorker()

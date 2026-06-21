@@ -69,6 +69,8 @@ def build_universe_graph(session, universe_id):
                 G.add_edge(node_id, f"evt_{e.id}", label="participated_in", title=p.role)
 
     return G
+
+
 def build_character_graph(session, character_id):
     """Generates a graph centered on a specific character and their direct connections."""
     G = nx.Graph()
@@ -94,8 +96,12 @@ def build_character_graph(session, character_id):
         
     return G
 
+
 def build_root_entity_graph(session, root_entity_id):
-    """Generates a graph for a Root Entity spanning across all linked multiversal elements."""
+    """Generates a graph for a Root Entity spanning across all linked multiversal elements.
+    
+    Fetches real entity names and skips stale links (deleted entities).
+    """
     G = nx.Graph()
     
     root = session.query(RootEntity).get(root_entity_id)
@@ -105,18 +111,48 @@ def build_root_entity_graph(session, root_entity_id):
     G.add_node(f"root_{root.id}", label=root.name, group="root_entity", size=40, color="#FFD700")
     
     for link in root.links:
-        prefix_map = {'character': 'chr', 'faction': 'fac', 'location': 'loc', 'event': 'evt', 'universe': 'uni', 'artifact': 'art'}
+        prefix_map = {
+            'character': 'chr', 'faction': 'fac', 'location': 'loc',
+            'event': 'evt', 'universe': 'uni', 'artifact': 'art'
+        }
         prefix = prefix_map.get(link.entity_type, 'unknown')
         node_id = f"{prefix}_{link.entity_id}"
         
-        # In a real scenario, you might want to fetch the exact name of the linked entity here. 
-        # For graph structural purposes, we create the node if it doesn't exist.
-        if not G.has_node(node_id):
-            G.add_node(node_id, label=f"{link.entity_type.capitalize()} {link.entity_id}", group=link.entity_type)
+        # Fetch actual entity name and verify it still exists in DB
+        entity_name = None
+        try:
+            if link.entity_type == 'universe':
+                obj = session.query(Universe).get(link.entity_id)
+                entity_name = obj.name if obj else None
+            elif link.entity_type == 'character':
+                obj = session.query(Character).get(link.entity_id)
+                entity_name = obj.name if obj else None
+            elif link.entity_type == 'faction':
+                obj = session.query(Faction).get(link.entity_id)
+                entity_name = obj.name if obj else None
+            elif link.entity_type == 'location':
+                obj = session.query(Location).get(link.entity_id)
+                entity_name = obj.name if obj else None
+            elif link.entity_type == 'artifact':
+                obj = session.query(Artifact).get(link.entity_id)
+                entity_name = obj.name if obj else None
+            elif link.entity_type == 'event':
+                obj = session.query(Event).get(link.entity_id)
+                entity_name = obj.name if obj else None
+        except Exception:
+            entity_name = None
+        
+        # Skip stale links pointing to entities that no longer exist
+        if entity_name is None:
+            continue
             
-        G.add_edge(f"root_{root.id}", node_id, label="linked_to", title=link.description)
+        if not G.has_node(node_id):
+            G.add_node(node_id, label=entity_name, group=link.entity_type)
+            
+        G.add_edge(f"root_{root.id}", node_id, label="linked_to", title=link.description or "")
 
     return G
+
 
 def export_graph_to_html(nx_graph, output_path):
     """Converts a NetworkX graph to a PyVis interactive HTML file."""

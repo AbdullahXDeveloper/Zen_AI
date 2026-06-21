@@ -317,6 +317,14 @@ class EventFormPanel(QFrame):
         self.type_combo.setStyleSheet(fs)
         lay.addWidget(self.type_combo)
 
+        # Custom type input — shown only when "other" is selected
+        self.custom_type_input = QLineEdit()
+        self.custom_type_input.setPlaceholderText("Custom event type name...")
+        self.custom_type_input.setStyleSheet(fs)
+        self.custom_type_input.hide()
+        lay.addWidget(self.custom_type_input)
+        self.type_combo.currentIndexChanged.connect(self._on_type_changed)
+
         lay.addWidget(_lbl("DATE VALUE  (sortable, e.g. 0001-03-15 or Era-5)"))
         self.date_value_input = QLineEdit()
         self.date_value_input.setPlaceholderText("e.g.  0521-07-01")
@@ -367,6 +375,13 @@ class EventFormPanel(QFrame):
         for u in universes:
             self.universe_combo.addItem(u["name"], u["id"])
 
+    def _on_type_changed(self, index: int):
+        """Show/hide custom type input based on selection."""
+        is_other = self.type_combo.currentData() == "other"
+        self.custom_type_input.setVisible(is_other)
+        if not is_other:
+            self.custom_type_input.clear()
+
     def open_create(self):
         self._edit_id = None
         self._title.setText("New Event")
@@ -377,6 +392,8 @@ class EventFormPanel(QFrame):
         self.date_value_input.clear()
         self.date_label_input.clear()
         self.type_combo.setCurrentIndex(0)
+        self.custom_type_input.clear()
+        self.custom_type_input.hide()
         self.canon_combo.setCurrentIndex(0)
         self.score_slider.setValue(50)
         if self.universe_combo.count():
@@ -396,10 +413,22 @@ class EventFormPanel(QFrame):
         self.date_value_input.setText(data["date_value"])
         self.date_label_input.setText(data["date_label"])
         et = data["event_type"]
-        for i in range(self.type_combo.count()):
-            if self.type_combo.itemData(i) == et:
-                self.type_combo.setCurrentIndex(i)
-                break
+        known_types = [self.type_combo.itemData(i) for i in range(self.type_combo.count())]
+        if et in known_types:
+            for i in range(self.type_combo.count()):
+                if self.type_combo.itemData(i) == et:
+                    self.type_combo.setCurrentIndex(i)
+                    break
+            self.custom_type_input.clear()
+            self.custom_type_input.hide()
+        else:
+            # Unknown custom type — select "other" and show custom input
+            for i in range(self.type_combo.count()):
+                if self.type_combo.itemData(i) == "other":
+                    self.type_combo.setCurrentIndex(i)
+                    break
+            self.custom_type_input.setText(et)
+            self.custom_type_input.show()
         idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
         self.canon_combo.setCurrentIndex(idx)
         self.score_slider.setValue(data["importance_score"])
@@ -424,7 +453,7 @@ class EventFormPanel(QFrame):
             "description":      self.desc_input.toPlainText().strip() or None,
             "date_value":       self.date_value_input.text().strip() or None,
             "date_label":       self.date_label_input.text().strip() or None,
-            "event_type":       self.type_combo.currentData(),
+            "event_type":       self.custom_type_input.text().strip() if self.type_combo.currentData() == "other" and self.custom_type_input.text().strip() else self.type_combo.currentData(),
             "canon_status":     self.canon_combo.currentData(),
             "importance_score": self.score_slider.value(),
         }
@@ -547,6 +576,10 @@ class EventsViewWidget(QWidget):
         self._form_panel.hide()
         root.addWidget(self._form_panel, 0)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Refresh universe list every time tab is opened
+        self._load_universes()
 
     def _load_universes(self):
         self._uni_worker = LoadUniversesForEvtWorker()

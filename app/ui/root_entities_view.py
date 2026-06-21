@@ -352,10 +352,11 @@ class RootEntityFormPanel(QFrame):
         self.name_input.setStyleSheet(fs)
         lay.addWidget(self.name_input)
         
-        lay.addWidget(_lbl("TYPE"))
+        lay.addWidget(_lbl("TYPE  (you can type a custom value)"))
         self.type_input = QComboBox()
         self.type_input.setEditable(True)
         self.type_input.addItems(["Root Entity", "Cosmic Structure", "Primordial Force", "Multiversal Anchor"])
+        self.type_input.lineEdit().setPlaceholderText("Select or type custom...")
         self.type_input.setStyleSheet(fs)
         lay.addWidget(self.type_input)
 

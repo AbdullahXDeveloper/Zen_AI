@@ -421,6 +421,14 @@ class LocationFormPanel(QFrame):
         self.type_combo.setStyleSheet(fs)
         lay.addWidget(self.type_combo)
 
+        # Custom type input — shown only when "other" is selected
+        self.custom_type_input = QLineEdit()
+        self.custom_type_input.setPlaceholderText("Custom location type name...")
+        self.custom_type_input.setStyleSheet(fs)
+        self.custom_type_input.hide()
+        lay.addWidget(self.custom_type_input)
+        self.type_combo.currentIndexChanged.connect(self._on_type_changed)
+
         # Description
         lay.addWidget(_lbl("DESCRIPTION"))
         self.desc_input = QTextEdit()
@@ -470,6 +478,15 @@ class LocationFormPanel(QFrame):
         for u in universes:
             self.universe_combo.addItem(u["name"], u["id"])
 
+    # ── Type toggle ────────────────────────────────────────
+
+    def _on_type_changed(self, index: int):
+        """Show custom input when 'other' is selected."""
+        is_other = self.type_combo.currentData() == "other"
+        self.custom_type_input.setVisible(is_other)
+        if not is_other:
+            self.custom_type_input.clear()
+
     # ── Public API ─────────────────────────────────────────
 
     def open_create(self):
@@ -480,6 +497,8 @@ class LocationFormPanel(QFrame):
         self.name_input.clear()
         self.desc_input.clear()
         self.type_combo.setCurrentIndex(0)
+        self.custom_type_input.clear()
+        self.custom_type_input.hide()
         self.canon_combo.setCurrentIndex(0)
         self.score_slider.setValue(50)
         if self.universe_combo.count():
@@ -501,12 +520,24 @@ class LocationFormPanel(QFrame):
 
         # set type
         loc_type = data["type"] if data["type"] != "—" else None
+        known_types = [self.type_combo.itemData(i) for i in range(self.type_combo.count())]
         self.type_combo.setCurrentIndex(0)
+        self.custom_type_input.clear()
+        self.custom_type_input.hide()
         if loc_type:
-            for i in range(self.type_combo.count()):
-                if self.type_combo.itemData(i) == loc_type:
-                    self.type_combo.setCurrentIndex(i)
-                    break
+            if loc_type in known_types:
+                for i in range(self.type_combo.count()):
+                    if self.type_combo.itemData(i) == loc_type:
+                        self.type_combo.setCurrentIndex(i)
+                        break
+            else:
+                # Unknown custom type — select "other"
+                for i in range(self.type_combo.count()):
+                    if self.type_combo.itemData(i) == "other":
+                        self.type_combo.setCurrentIndex(i)
+                        break
+                self.custom_type_input.setText(loc_type)
+                self.custom_type_input.show()
 
         idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
         self.canon_combo.setCurrentIndex(idx)
@@ -532,7 +563,7 @@ class LocationFormPanel(QFrame):
         payload = {
             "universe_id":      uid,
             "name":             name,
-            "type":             self.type_combo.currentData(),
+            "type":             self.custom_type_input.text().strip() if self.type_combo.currentData() == "other" and self.custom_type_input.text().strip() else self.type_combo.currentData(),
             "description":      self.desc_input.toPlainText().strip() or None,
             "canon_status":     self.canon_combo.currentData(),
             "importance_score": self.score_slider.value(),
@@ -707,6 +738,10 @@ class LocationsViewWidget(QWidget):
         self._form_panel.hide()
         root.addWidget(self._form_panel, 0)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Refresh universe list every time tab is opened
+        self._load_universes()
 
     # ── Universe loading ───────────────────────────────────
 
