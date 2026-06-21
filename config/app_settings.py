@@ -35,6 +35,10 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
+
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
+load_dotenv(_ENV_PATH)  # Load variables from config/.env file
 
 _SETTINGS_PATH = Path(__file__).resolve().parent / "user_settings.json"
 
@@ -128,6 +132,26 @@ class AppSettings:
 
     @property
     def api_key(self) -> str:
+        # Pehle .env file se check karein (provider ke hisaab se)
+        provider = self.ai_provider
+        if provider == "groq":
+            env_key = os.getenv("GROQ_API_KEY")
+        elif provider == "openai":
+            env_key = os.getenv("OPENAI_API_KEY")
+        elif provider == "gemini":
+            env_key = os.getenv("GEMINI_API_KEY")
+        elif provider == "anthropic":
+            env_key = os.getenv("ANTHROPIC_API_KEY")
+        else:
+            env_key = None
+            
+        if env_key: return env_key
+        
+        # General API_KEY variable check
+        env_key = os.getenv("API_KEY")
+        if env_key: return env_key
+        
+        # Phir user_settings.json se
         return self.get("ai", "api_key", "")
 
     @property

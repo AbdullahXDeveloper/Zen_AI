@@ -32,6 +32,8 @@ env/
 # ── Environment Variables (NEVER commit API keys) ──
 config/.env
 .env
+config/app_settings.py
+app_settings.py
 *.env
 !.env.example
 
