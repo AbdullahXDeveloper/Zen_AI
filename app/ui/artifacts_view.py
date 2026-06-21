@@ -14,6 +14,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 
 from app.database.db_init import get_session
 from app.database import crud
+from app.ui.story_links_widget import StoryLinksWidget
 
 ACCENT = "#00BCD4"
 CANON_COLORS = {
@@ -333,6 +334,11 @@ class ArtifactFormPanel(QFrame):
         score_row.addWidget(self.score_slider)
         score_row.addWidget(self.score_val)
         lay.addLayout(score_row)
+        # Story Links
+        lay.addSpacing(8)
+        self.story_links = StoryLinksWidget("artifact")
+        lay.addWidget(self.story_links)
+
         lay.addStretch()
 
         scroll.setWidget(fw)
@@ -370,6 +376,7 @@ class ArtifactFormPanel(QFrame):
         powers = data.get("powers_json") or []
         self.powers_input.setText(", ".join(str(p) for p in powers))
         self.score_slider.setValue(data["importance_score"])
+        self.story_links.load_for_entity(data["id"])
 
     def _cancel(self):
         self.hide()

@@ -24,6 +24,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 
 from app.database.db_init import get_session
 from app.database import crud
+from app.ui.story_links_widget import StoryLinksWidget
 
 
 # ─────────────────────────────────────────────────────────
@@ -508,6 +509,12 @@ class CharacterFormPanel(QFrame):
         score_row.addWidget(self.score_slider)
         score_row.addWidget(self.score_val)
         lay.addLayout(score_row)
+
+        # Story Links
+        lay.addSpacing(8)
+        self.story_links = StoryLinksWidget("character")
+        lay.addWidget(self.story_links)
+
         lay.addStretch()
 
         scroll.setWidget(fw)
@@ -529,6 +536,7 @@ class CharacterFormPanel(QFrame):
         self._clear_fields()
         self._status.setText("")
         self._save_btn.setEnabled(True)
+        self.story_links.set_pending_entity()
 
     def open_edit(self, data: dict):
         self._edit_id = data["id"]
@@ -552,6 +560,7 @@ class CharacterFormPanel(QFrame):
         idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
         self.canon_combo.setCurrentIndex(idx)
         self.score_slider.setValue(data["importance_score"])
+        self.story_links.load_for_entity(data["id"])
 
     # ── Internal ───────────────────────────────────────────
 

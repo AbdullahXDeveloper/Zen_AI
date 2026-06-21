@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 
 from app.database.db_init import get_session
 from app.database import crud
+from app.ui.story_links_widget import StoryLinksWidget
 
 ACCENT = "#8e44ad"
 STORY_MODE_COLORS = {
@@ -332,6 +333,11 @@ class StoryFormPanel(QFrame):
         self.raw_text_input.setFixedHeight(130)
         self.raw_text_input.setStyleSheet(fs)
         lay.addWidget(self.raw_text_input)
+        # Story Links
+        lay.addSpacing(8)
+        self.story_links = StoryLinksWidget("story")
+        lay.addWidget(self.story_links)
+
         lay.addStretch()
 
         scroll.setWidget(fw)

@@ -44,6 +44,53 @@ class Universe(Base):
     artifacts = relationship("Artifact", back_populates="universe", cascade="all, delete-orphan")
     stories = relationship("Story", back_populates="universe", cascade="all, delete-orphan")
     simulation_runs = relationship("SimulationRun", back_populates="universe", cascade="all, delete-orphan")
+    cosmic_nodes = relationship("CosmicNode", back_populates="universe", cascade="all, delete-orphan")
+
+
+# ============================================================
+# COSMIC NODES (hierarchical tree inside each universe)
+# ============================================================
+
+NODE_TYPES = ["black_hole", "galaxy", "solar_system", "planet", "star", "nebula", "custom"]
+
+NODE_ICONS = {
+    "black_hole":   "🕳️",
+    "galaxy":       "🌌",
+    "solar_system": "☀️",
+    "planet":       "🪐",
+    "star":         "⭐",
+    "nebula":       "🌫️",
+    "custom":       "📦",
+}
+
+
+class CosmicNode(Base):
+    __tablename__ = "cosmic_nodes"
+
+    id = Column(Integer, primary_key=True)
+    uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("csm"))
+    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=False)
+    parent_id = Column(Integer, ForeignKey("cosmic_nodes.id"), nullable=True)
+    name = Column(String(255), nullable=False)
+    node_type = Column(String(50), default="custom")  # black_hole/galaxy/solar_system/planet/star/nebula/custom
+    description = Column(Text)
+    importance_score = Column(Integer, default=50)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    universe = relationship("Universe", back_populates="cosmic_nodes")
+    children = relationship(
+        "CosmicNode",
+        foreign_keys="CosmicNode.parent_id",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+    )
+    parent = relationship(
+        "CosmicNode",
+        foreign_keys="CosmicNode.parent_id",
+        back_populates="children",
+        remote_side="CosmicNode.id",
+        uselist=False,
+    )
 
 
 class UniverseConnection(Base):
@@ -390,3 +437,27 @@ class EntityNote(Base):
     entity_id = Column(Integer, nullable=False)
     note_text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================
+# ENTITY LINKS (cross-entity links, with custom name)
+# ============================================================
+
+class EntityLink(Base):
+    """
+    Links any entity (character, faction, location, event, artifact, story, cosmic_node)
+    to any other entity, with a user-defined link name/label.
+    """
+    __tablename__ = "entity_links"
+
+    id = Column(Integer, primary_key=True)
+    # The entity being linked FROM
+    source_entity_type = Column(String(50), nullable=False)
+    source_entity_id = Column(Integer, nullable=False)
+    # The entity being linked TO
+    target_entity_type = Column(String(50), nullable=False)
+    target_entity_id = Column(Integer, nullable=False)
+    
+    link_name = Column(String(255))  # User-defined label, e.g. "Origin Story", "Home Planet"
+    created_at = Column(DateTime, default=datetime.utcnow)
+

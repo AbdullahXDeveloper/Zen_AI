@@ -14,6 +14,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 
 from app.database.db_init import get_session
 from app.database import crud
+from app.ui.story_links_widget import StoryLinksWidget
 
 ACCENT = "#e74c3c"
 CANON_COLORS = {
@@ -364,6 +365,11 @@ class EventFormPanel(QFrame):
         score_row.addWidget(self.score_slider)
         score_row.addWidget(self.score_val)
         lay.addLayout(score_row)
+        # Story Links
+        lay.addSpacing(8)
+        self.story_links = StoryLinksWidget("event")
+        lay.addWidget(self.story_links)
+
         lay.addStretch()
 
         scroll.setWidget(fw)
@@ -432,6 +438,7 @@ class EventFormPanel(QFrame):
         idx = CANON_OPTIONS.index(data["canon_status"]) if data["canon_status"] in CANON_OPTIONS else 0
         self.canon_combo.setCurrentIndex(idx)
         self.score_slider.setValue(data["importance_score"])
+        self.story_links.load_for_entity(data["id"])
 
     def _cancel(self):
         self.hide()

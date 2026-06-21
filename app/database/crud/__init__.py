@@ -157,3 +157,24 @@ from app.database.csv_io import (
     import_csv,
     export_all_tables,
 )
+
+# Cosmic Nodes (universe hierarchy tree)
+from app.database.crud.cosmic_nodes import (
+    create_cosmic_node,
+    get_cosmic_node,
+    list_cosmic_nodes_by_universe,
+    list_root_cosmic_nodes,
+    list_cosmic_node_children,
+    update_cosmic_node,
+    delete_cosmic_node,
+)
+
+# Story Links (cross-entity story connections)
+from app.database.crud.story_links import (
+    create_story_link,
+    get_story_link,
+    list_story_links,
+    delete_story_link,
+    list_all_stories_enriched,
+)
+
