@@ -255,12 +255,12 @@ def _universe_pill(data: dict) -> QFrame:
     lay = QHBoxLayout(f)
     lay.setContentsMargins(16, 0, 16, 0)
 
-    name = QLabel(f"{{data['name']}}")
+    name = QLabel(f"{data['name']}")
     name.setStyleSheet(
         "color: #EEEEEE; font-size: 13px; font-weight: 700; "
         "background: transparent; border: none;"
     )
-    score = QLabel(f"★ {{data['score']}}")
+    score = QLabel(f"★ {data['score']}")
     score.setStyleSheet(
         f"color: {c}; font-size: 12px; font-weight: 800; "
         "background: transparent; border: none;"
@@ -311,7 +311,7 @@ def _char_row(data: dict) -> QFrame:
     bar_container.setFixedSize(90, 20)
     bar_container.setStyleSheet("background: transparent; border: none;")
     
-    score_lbl = QLabel(f"{{data['score']}} / 100", bar_container)
+    score_lbl = QLabel(f"{data['score']} / 100", bar_container)
     score_lbl.setGeometry(0, 0, 90, 12)
     score_lbl.setAlignment(Qt.AlignRight)
     score_lbl.setStyleSheet("color: #888; font-size: 9px; font-weight: 700; background: transparent;")

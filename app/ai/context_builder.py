@@ -162,6 +162,7 @@ def build_search_context(session, query: str, entity_type: Optional[str] = None,
         "event": crud.get_event,
         "artifact": crud.get_artifact,
         "story": crud.get_story,
+        "universe": crud.get_universe,
     }
 
     lines = []

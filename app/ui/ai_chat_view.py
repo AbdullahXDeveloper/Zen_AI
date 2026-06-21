@@ -57,7 +57,7 @@ class AIChatWidget(QWidget):
         layout.setSpacing(15)
 
         # Header
-        header = QLabel("🧠 Zen AI Assistant (Local Offline Mode — Lore-Aware)")
+        header = QLabel("🧠 Zen AI Assistant (GROQ Mode — Lore-Aware)")
         header.setStyleSheet("font-size: 22px; font-weight: bold; color: #00ADB5;")
         layout.addWidget(header)
 

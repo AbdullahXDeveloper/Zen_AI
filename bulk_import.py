@@ -7,6 +7,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.database.db_init import get_session
 from app.database.models import Universe, Character, Location, Faction
+from app.search.indexer import rebuild_index
 
 def run_bulk_import(json_file="bulk_data.json"):
     if not os.path.exists(json_file):
@@ -80,6 +81,9 @@ def run_bulk_import(json_file="bulk_data.json"):
         # Final commit for all the children entities
         session.commit()
         
+        print("\nRebuilding AI Search Index...")
+        rebuild_index(session)
+
         print("\n=== BULK IMPORT SUCCESSFUL ===")
         print(f"Universes Created : {universes_added}")
         print(f"Characters Created: {characters_added}")

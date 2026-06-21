@@ -14,7 +14,7 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from app.database.models import (
-    Character, Faction, Location,
+    Universe, Character, Faction, Location,
     Event, Artifact, Story,
 )
 from app.search.embedder import embed_text, embed_batch
@@ -25,6 +25,10 @@ from app.search import faiss_store
 # TEXT EXTRACTION PER ENTITY TYPE
 # Combine the most useful text fields into one string for embedding.
 # ─────────────────────────────────────────────
+
+def _universe_text(u: Universe) -> str:
+    parts = [u.name or "", u.description or ""]
+    return " ".join(p for p in parts if p).strip()
 
 def _character_text(c: Character) -> str:
     parts = [
@@ -70,6 +74,7 @@ def _story_text(s: Story) -> str:
 # ─────────────────────────────────────────────
 
 ENTITY_CONFIG = {
+    "universe":  (Universe,  _universe_text),
     "character": (Character, _character_text),
     "faction":   (Faction,   _faction_text),
     "location":  (Location,  _location_text),
