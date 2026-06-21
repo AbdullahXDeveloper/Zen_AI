@@ -57,22 +57,36 @@ class AIChatWidget(QWidget):
         layout.setSpacing(15)
 
         # Header
-        header = QLabel("🧠 Zen AI Assistant (GROQ Mode — Lore-Aware)")
-        header.setStyleSheet("font-size: 22px; font-weight: bold; color: #00ADB5;")
-        layout.addWidget(header)
+        header_lay = QHBoxLayout()
+        header_lay.setContentsMargins(0,0,0,0)
+        dot = QLabel("✦")
+        dot.setStyleSheet("color: #00ADB5; font-size: 18px; font-weight: 900; background: transparent;")
+        header = QLabel("  Zen AI Assistant (GROQ Mode — Lore-Aware)")
+        header.setStyleSheet("font-size: 18px; font-weight: 800; color: #00ADB5; letter-spacing: 2px;")
+        header_lay.addWidget(dot)
+        header_lay.addWidget(header)
+        header_lay.addStretch()
+        layout.addLayout(header_lay)
 
         # Chat History Box
         self.chat_history = QTextBrowser()
         self.chat_history.setStyleSheet("""
             QTextBrowser {
-                background-color: #1A1A1A;
-                border: 1px solid #333;
-                border-radius: 8px;
-                padding: 15px;
-                font-size: 15px;
-                line-height: 1.5;
-                color: #E0E0E0;
+                background-color: #121212;
+                border: 1px solid #262626;
+                border-radius: 12px;
+                padding: 20px;
+                font-size: 14px;
+                line-height: 1.6;
+                color: #EEEEEE;
             }
+            QScrollBar:vertical {
+                background: #111; width: 8px; border-radius: 4px; margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #333; border-radius: 4px; min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover { background: #00ADB5; }
         """)
         layout.addWidget(self.chat_history)
 
@@ -80,33 +94,36 @@ class AIChatWidget(QWidget):
         input_layout = QHBoxLayout()
         
         self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Ask Zen about your multiverse, or generate new lore...")
+        self.input_field.setPlaceholderText(" Ask Zen about your multiverse, or generate new lore...")
+        self.input_field.setFixedHeight(48)
         self.input_field.setStyleSheet("""
             QLineEdit {
-                background-color: #2D2D2D;
-                border: 1px solid #444;
-                border-radius: 6px;
-                padding: 12px;
-                font-size: 15px;
+                background-color: rgba(20, 20, 20, 0.9);
+                border: 1px solid #333;
+                border-radius: 12px;
+                padding: 0 16px;
+                font-size: 14px;
                 color: #FFF;
             }
-            QLineEdit:focus { border: 1px solid #00ADB5; }
+            QLineEdit:focus { border: 1px solid #00ADB5; background-color: #1A1A1A; }
         """)
         self.input_field.returnPressed.connect(self.send_message)
         
-        self.send_btn = QPushButton("Send")
+        self.send_btn = QPushButton("✦  Send")
+        self.send_btn.setFixedHeight(48)
         self.send_btn.setStyleSheet("""
             QPushButton {
-                background-color: #00ADB5;
-                color: #121212;
-                font-weight: bold;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #00ADB5, stop:1 #008C9E);
+                color: #111111;
+                font-weight: 800;
+                letter-spacing: 1px;
                 border: none;
-                border-radius: 6px;
-                padding: 12px 20px;
-                font-size: 15px;
+                border-radius: 12px;
+                padding: 0 24px;
+                font-size: 14px;
             }
-            QPushButton:hover { background-color: #008C9E; }
-            QPushButton:disabled { background-color: #555; color: #888; }
+            QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #00d2dc, stop:1 #00a4b8); }
+            QPushButton:disabled { background: #333; color: #666; }
         """)
         self.send_btn.clicked.connect(self.send_message)
 

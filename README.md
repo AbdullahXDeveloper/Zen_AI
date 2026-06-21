@@ -2,7 +2,7 @@
 
 > A desktop AI-powered worldbuilding operating system for the Zendrix multiverse paracosm.
 
-ZenAI is not a chatbot. It is a **second brain** — a local desktop application that stores, organizes, analyzes, visualizes, expands, and evolves an entire multiverse lore database, powered by Claude AI.
+ZenAI is not a chatbot. It is a **second brain** — a local desktop application that stores, organizes, analyzes, visualizes, expands, and evolves an entire multiverse lore database, powered by Groq/Llama AI.
 
 ---
 
@@ -22,10 +22,10 @@ ZenAI is not a chatbot. It is a **second brain** — a local desktop application
 | 2 | Document Ingestion — DOCX/PDF/TXT → entity extraction pipeline | ❌ |
 | 3 | Knowledge Graph — NetworkX + PyVis, 4 graph types | ❌ |
 | 4 | Timeline Engine — multiverse → universe → character → event zoom | ❌ |
-| 5 | AI Core — Claude-powered lore generation, consistency checking, trait analysis | ❌ |
-| 6 | Vector Search — FAISS + Sentence Transformers semantic search | ❌ |
+| 5 | AI Core — Groq-powered lore generation, consistency checking, trait analysis | ✅ Done |
+| 6 | Vector Search — FAISS + Sentence Transformers semantic search | ✅ Done |
 | 7 | Wiki Generator — auto Wikipedia-style pages per entity | ❌ |
-| 8 | UI Shell — PySide6 desktop app with full sidebar navigation | ❌ |
+| 8 | UI Shell — PySide6 desktop app with full sidebar navigation | ✅ Done |
 | 9 | Cosmic View — interactive Zendrix Tree visualization | ❌ |
 | 10 | Analytics — DB stats, growth charts, version history, canon management | ❌ |
 | 11 | Story Assistant — AI story/chapter/dialogue writer constrained to lore | ❌ |
@@ -42,7 +42,7 @@ ZenAI is not a chatbot. It is a **second brain** — a local desktop application
 | Database | SQLite + SQLAlchemy |
 | Knowledge Graph | NetworkX |
 | Graph Visualization | PyVis + Plotly |
-| AI Backend | Claude API (Anthropic) |
+| AI Backend | Groq API (Llama / Mixtral) |
 | Embeddings | Sentence Transformers |
 | Vector Search | FAISS |
 | Document Processing | python-docx, PyMuPDF |
@@ -109,7 +109,7 @@ pip install -r requirements.txt
 Create a `config/.env` file:
 
 ```env
-ANTHROPIC_API_KEY=your_api_key_here
+GROQ_API_KEY=your_api_key_here
 ```
 
 ### 5. Initialize the database
