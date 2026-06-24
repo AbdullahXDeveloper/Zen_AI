@@ -151,109 +151,112 @@ class CosmicDataWorker(QThread):
                         "width": 2.0
                     })
 
+            def get_parent_info(item):
+                pid = "center"
+                pname = "Zendrix Prime"
+                if getattr(item, "universe_id", None):
+                    pid = f"uni_{item.universe_id}"
+                    pname = item.universe.name if hasattr(item, "universe") and item.universe else "Universe"
+                elif getattr(item, "faction_id", None):
+                    pid = f"fac_{item.faction_id}"
+                    pname = item.faction.name if hasattr(item, "faction") and item.faction else "Faction"
+                elif getattr(item, "root_entity_id", None):
+                    pid = f"root_{item.root_entity_id}"
+                    pname = item.root_entity.name if hasattr(item, "root_entity") and item.root_entity else "Root Entity"
+                return pid, pname
 
-                # ── Characters ────────────────────────
-                chars = session.query(Character).filter_by(universe_id=uid).all()
-                for c in chars:
-                    cnid = f"chr_{c.id}"
-                    nodes.append({
-                        "id": cnid, "label": c.name, "group": "character",
-                        "size": 16, "shape": SHAPES["character"],
-                        "color": {"background": "#2A0033", "border": COLORS["character"], "highlight": {"background": "#1A0020", "border": "#C77DFF"}},
-                        "font": {"color": "#9b59b6", "size": 10},
-                        "title": f"Character: {c.name}\nSpecies: {c.species or '—'}\nUniverse: {u.name}"
-                    })
-                    edges.append({
-                        "from": nid, "to": cnid,
-                        "color": {"color": COLORS["character"] + "99", "highlight": COLORS["character"] + "88"},
-                        "width": 1.8
-                    })
+            # Note: We must process Factions first since they can act as parents.
+            # Then Characters, Locations, etc.
+            
+            def process_entities(entities, prefix, group_name, shape, base_color, font_color, title_func, size, edge_width):
+                valid_parents = {n["id"] for n in nodes}
+                valid_parents.add("center")
+                
+                unprocessed = list(entities)
+                added_in_pass = True
+                
+                while added_in_pass and unprocessed:
+                    added_in_pass = False
+                    # iterate over a copy so we can remove from original list
+                    for item in list(unprocessed):
+                        nid = f"{prefix}_{item.id}"
+                        pid, pname = get_parent_info(item)
+                        if pid in valid_parents:
+                            nodes.append({
+                                "id": nid, "label": item.name if hasattr(item, "name") else item.title, "group": group_name,
+                                "size": size, "shape": shape,
+                                "color": base_color,
+                                "font": {"color": font_color, "size": max(9, size-5)},
+                                "title": title_func(item, pname)
+                            })
+                            edges.append({
+                                "from": pid, "to": nid,
+                                "color": {"color": COLORS[group_name] + "99", "highlight": COLORS[group_name] + "88"},
+                                "width": edge_width
+                            })
+                            valid_parents.add(nid)
+                            unprocessed.remove(item)
+                            added_in_pass = True
 
-                # ── Factions ──────────────────────────
-                facs = session.query(Faction).filter_by(universe_id=uid).all()
-                for f in facs:
-                    fnid = f"fac_{f.id}"
-                    nodes.append({
-                        "id": fnid, "label": f.name, "group": "faction",
-                        "size": 16, "shape": SHAPES["faction"],
-                        "color": {"background": "#402400", "border": COLORS["faction"], "highlight": {"background": "#2A1800", "border": "#FFCA6A"}},
-                        "font": {"color": "#f39c12", "size": 10},
-                        "title": f"Faction: {f.name}\nUniverse: {u.name}"
-                    })
-                    edges.append({
-                        "from": nid, "to": fnid,
-                        "color": {"color": COLORS["faction"] + "99", "highlight": COLORS["faction"] + "88"},
-                        "width": 1.8
-                    })
+            # ── Factions ──────────────────────────
+            facs = session.query(Faction).all()
+            process_entities(
+                facs, "fac", "faction", SHAPES["faction"],
+                {"background": "#402400", "border": COLORS["faction"], "highlight": {"background": "#2A1800", "border": "#FFCA6A"}},
+                "#f39c12",
+                lambda f, p: f"Faction: {f.name}\nConnected To: {p}",
+                16, 1.8
+            )
 
-                # ── Locations ─────────────────────────
-                locs = session.query(Location).filter_by(universe_id=uid).all()
-                for loc in locs:
-                    lnid = f"loc_{loc.id}"
-                    nodes.append({
-                        "id": lnid, "label": loc.name, "group": "location",
-                        "size": 14, "shape": SHAPES["location"],
-                        "color": {"background": "#004011", "border": COLORS["location"], "highlight": {"background": "#00280A", "border": "#5EFF8F"}},
-                        "font": {"color": "#2ecc71", "size": 10},
-                        "title": f"Location: {loc.name}\nType: {loc.type or '—'}\nUniverse: {u.name}"
-                    })
-                    edges.append({
-                        "from": nid, "to": lnid,
-                        "color": {"color": COLORS["location"] + "88", "highlight": COLORS["location"] + "55"},
-                        "width": 2.5
-                    })
+            # ── Locations ─────────────────────────
+            locs = session.query(Location).all()
+            process_entities(
+                locs, "loc", "location", SHAPES["location"],
+                {"background": "#004011", "border": COLORS["location"], "highlight": {"background": "#00280A", "border": "#5EFF8F"}},
+                "#2ecc71",
+                lambda loc, p: f"Location: {loc.name}\nType: {loc.type or '—'}\nConnected To: {p}",
+                14, 2.5
+            )
 
-                # ── Artifacts ─────────────────────────
-                arts = session.query(Artifact).filter_by(universe_id=uid).all()
-                for a in arts:
-                    anid = f"art_{a.id}"
-                    nodes.append({
-                        "id": anid, "label": a.name, "group": "artifact",
-                        "size": 12, "shape": SHAPES["artifact"],
-                        "color": {"background": "#00333E", "border": COLORS["artifact"], "highlight": {"background": "#001E24", "border": "#80FFFF"}},
-                        "font": {"color": "#00BCD4", "size": 9},
-                        "title": f"Artifact: {a.name}\nUniverse: {u.name}"
-                    })
-                    edges.append({
-                        "from": nid, "to": anid,
-                        "color": {"color": COLORS["artifact"] + "77", "highlight": COLORS["artifact"] + "55"},
-                        "width": 1.2
-                    })
+            # ── Artifacts ─────────────────────────
+            arts = session.query(Artifact).all()
+            process_entities(
+                arts, "art", "artifact", SHAPES["artifact"],
+                {"background": "#00333E", "border": COLORS["artifact"], "highlight": {"background": "#001E24", "border": "#80FFFF"}},
+                "#00BCD4",
+                lambda a, p: f"Artifact: {a.name}\nConnected To: {p}",
+                12, 1.2
+            )
 
-                # ── Events ────────────────────────────
-                evts = session.query(Event).filter_by(universe_id=uid).all()
-                for e in evts:
-                    enid = f"evt_{e.id}"
-                    nodes.append({
-                        "id": enid, "label": e.name, "group": "event",
-                        "size": 12, "shape": SHAPES["event"],
-                        "color": {"background": "#400000", "border": COLORS["event"], "highlight": {"background": "#2A0000", "border": "#FF7A7A"}},
-                        "font": {"color": "#e74c3c", "size": 9},
-                        "title": f"Event: {e.name}\nDate: {e.date_label or '—'}\nUniverse: {u.name}"
-                    })
-                    edges.append({
-                        "from": nid, "to": enid,
-                        "color": {"color": COLORS["event"] + "77", "highlight": COLORS["event"] + "55"},
-                        "width": 1.2
-                    })
+            # ── Events ────────────────────────────
+            evts = session.query(Event).all()
+            process_entities(
+                evts, "evt", "event", SHAPES["event"],
+                {"background": "#400000", "border": COLORS["event"], "highlight": {"background": "#2A0000", "border": "#FF7A7A"}},
+                "#e74c3c",
+                lambda e, p: f"Event: {e.name}\nDate: {e.date_label or '—'}\nConnected To: {p}",
+                12, 1.2
+            )
 
-            # ── Stories (Universe-independent) ────────
+            # ── Characters ────────────────────────
+            chars = session.query(Character).all()
+            process_entities(
+                chars, "chr", "character", SHAPES["character"],
+                {"background": "#2A0033", "border": COLORS["character"], "highlight": {"background": "#1A0020", "border": "#C77DFF"}},
+                "#9b59b6",
+                lambda c, p: f"Character: {c.name}\nSpecies: {c.species or '—'}\nConnected To: {p}",
+                16, 1.8
+            )
+
+            # ── Stories ───────────────────────────
             stories = session.query(Story).all()
-            for s in stories:
-                snid = f"sto_{s.id}"
-                parent = f"uni_{s.universe_id}" if s.universe_id else "center"
-                nodes.append({
-                    "id": snid, "label": s.title, "group": "story",
-                    "size": 12, "shape": SHAPES["story"],
-                    "color": {"background": "#29004D", "border": COLORS["story"], "highlight": {"background": "#1A0030", "border": "#C77DFF"}},
-                    "font": {"color": "#8e44ad", "size": 9},
-                    "title": f"Story: {s.title}\nMode: {s.story_mode or '—'}"
-                })
-                edges.append({
-                    "from": parent, "to": snid,
-                    "color": {"color": COLORS["story"] + "77", "highlight": COLORS["story"] + "55"},
-                    "width": 1.2, "dashes": True
-                })
+            process_entities(
+                stories, "sto", "story", SHAPES["story"],
+                {"background": "#29004D", "border": COLORS["story"], "highlight": {"background": "#1A0030", "border": "#C77DFF"}},
+                "#8e44ad",
+                lambda s, p: f"Story: {s.title}\nMode: {s.story_mode or '—'}\nConnected To: {p}",
+                12, 1.2
+            )
             # ── Universal Links (EntityLinks) ────────────
             from app.database.models import EntityLink
             all_links = session.query(EntityLink).all()

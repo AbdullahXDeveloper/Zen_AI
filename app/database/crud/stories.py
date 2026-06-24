@@ -21,6 +21,8 @@ def create_story(
     story_mode: str = "canon",
     canon_status: str = "canon",
     universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     approved_by: str = "user",
 ) -> Story:
     """
@@ -33,6 +35,8 @@ def create_story(
         story_mode=story_mode,
         canon_status=canon_status,
         universe_id=universe_id,
+        faction_id=faction_id,
+        root_entity_id=root_entity_id,
     )
     session.add(story)
     session.flush()
@@ -53,6 +57,8 @@ def get_story_by_uuid(session: Session, uuid: str) -> Story | None:
 def list_stories(
     session: Session,
     universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     story_mode: str = None,
     canon_status: str = None,
     title_contains: str = None,
@@ -60,6 +66,10 @@ def list_stories(
     q = session.query(Story)
     if universe_id is not None:
         q = q.filter(Story.universe_id == universe_id)
+    if faction_id is not None:
+        q = q.filter(Story.faction_id == faction_id)
+    if root_entity_id is not None:
+        q = q.filter(Story.root_entity_id == root_entity_id)
     if story_mode:
         q = q.filter(Story.story_mode == story_mode)
     if canon_status:
@@ -79,7 +89,7 @@ def update_story(
     if not story:
         return None
 
-    allowed = {"title", "summary", "raw_text", "story_mode", "canon_status", "universe_id"}
+    allowed = {"title", "summary", "raw_text", "story_mode", "canon_status", "universe_id", "faction_id", "root_entity_id"}
     for key, val in kwargs.items():
         if key in allowed:
             setattr(story, key, val)

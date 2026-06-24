@@ -15,8 +15,10 @@ ENTITY_TYPE = "event"
 
 def create_event(
     session: Session,
-    universe_id: int,
     name: str,
+    universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     description: str = None,
     date_value: str = None,
     date_label: str = None,
@@ -27,6 +29,8 @@ def create_event(
 ) -> Event:
     evt = Event(
         universe_id=universe_id,
+        faction_id=faction_id,
+        root_entity_id=root_entity_id,
         name=name,
         description=description,
         date_value=date_value,
@@ -54,14 +58,20 @@ def get_event_by_uuid(session: Session, uuid: str) -> Event | None:
 def list_events(
     session: Session,
     universe_id: int = None,
-    event_type: str = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     canon_status: str = None,
+    event_type: str = None,
     min_importance: int = None,
     name_contains: str = None,
 ) -> list[Event]:
     q = session.query(Event)
     if universe_id is not None:
         q = q.filter(Event.universe_id == universe_id)
+    if faction_id is not None:
+        q = q.filter(Event.faction_id == faction_id)
+    if root_entity_id is not None:
+        q = q.filter(Event.root_entity_id == root_entity_id)
     if event_type:
         q = q.filter(Event.event_type == event_type)
     if canon_status:
@@ -85,8 +95,8 @@ def update_event(
         return None
 
     allowed = {
-        "universe_id", "name", "description", "date_value", "date_label",
-        "event_type", "canon_status", "importance_score",
+        "universe_id", "faction_id", "root_entity_id", "name", "description", "date_value", "date_label",
+        "event_type", "canon_status", "importance_score"
     }
     for key, val in kwargs.items():
         if key in allowed:

@@ -11,8 +11,10 @@ ENTITY_TYPE = "location"
 
 def create_location(
     session: Session,
-    universe_id: int,
     name: str,
+    universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     description: str = None,
     type: str = None,
     canon_status: str = "canon",
@@ -21,6 +23,8 @@ def create_location(
 ) -> Location:
     loc = Location(
         universe_id=universe_id,
+        faction_id=faction_id,
+        root_entity_id=root_entity_id,
         name=name,
         description=description,
         type=type,
@@ -46,18 +50,24 @@ def get_location_by_uuid(session: Session, uuid: str) -> Location | None:
 def list_locations(
     session: Session,
     universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     canon_status: str = None,
-    type: str = None,
     min_importance: int = None,
     name_contains: str = None,
+    loc_type: str = None,
 ) -> list[Location]:
     q = session.query(Location)
     if universe_id is not None:
         q = q.filter(Location.universe_id == universe_id)
+    if faction_id is not None:
+        q = q.filter(Location.faction_id == faction_id)
+    if root_entity_id is not None:
+        q = q.filter(Location.root_entity_id == root_entity_id)
     if canon_status:
         q = q.filter(Location.canon_status == canon_status)
-    if type:
-        q = q.filter(Location.type.ilike(f"%{type}%"))
+    if loc_type:
+        q = q.filter(Location.type.ilike(f"%{loc_type}%"))
     if min_importance is not None:
         q = q.filter(Location.importance_score >= min_importance)
     if name_contains:
@@ -75,7 +85,7 @@ def update_location(
     if not loc:
         return None
 
-    allowed = {"universe_id", "name", "description", "type", "canon_status", "importance_score"}
+    allowed = {"universe_id", "faction_id", "root_entity_id", "name", "description", "type", "canon_status", "importance_score"}
     for key, val in kwargs.items():
         if key in allowed:
             setattr(loc, key, val)

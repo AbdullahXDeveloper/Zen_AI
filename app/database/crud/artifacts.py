@@ -11,8 +11,10 @@ ENTITY_TYPE = "artifact"
 
 def create_artifact(
     session: Session,
-    universe_id: int,
     name: str,
+    universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     description: str = None,
     owner_id: int = None,
     powers_json: list = None,
@@ -21,6 +23,8 @@ def create_artifact(
 ) -> Artifact:
     art = Artifact(
         universe_id=universe_id,
+        faction_id=faction_id,
+        root_entity_id=root_entity_id,
         name=name,
         description=description,
         owner_id=owner_id,
@@ -46,13 +50,20 @@ def get_artifact_by_uuid(session: Session, uuid: str) -> Artifact | None:
 def list_artifacts(
     session: Session,
     universe_id: int = None,
-    owner_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
+    canon_status: str = None,
     min_importance: int = None,
     name_contains: str = None,
+    owner_id: int = None,
 ) -> list[Artifact]:
     q = session.query(Artifact)
     if universe_id is not None:
         q = q.filter(Artifact.universe_id == universe_id)
+    if faction_id is not None:
+        q = q.filter(Artifact.faction_id == faction_id)
+    if root_entity_id is not None:
+        q = q.filter(Artifact.root_entity_id == root_entity_id)
     if owner_id is not None:
         q = q.filter(Artifact.owner_id == owner_id)
     if min_importance is not None:
@@ -72,7 +83,7 @@ def update_artifact(
     if not art:
         return None
 
-    allowed = {"universe_id", "name", "description", "owner_id", "powers_json", "importance_score"}
+    allowed = {"universe_id", "faction_id", "root_entity_id", "name", "description", "owner_id", "powers_json", "importance_score"}
     for key, val in kwargs.items():
         if key in allowed:
             setattr(art, key, val)

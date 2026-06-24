@@ -80,15 +80,22 @@ class LoadFactionsWorker(QThread):
             if 'session' in locals() and session: session.close()
 
 
-class LoadUniversesForFacWorker(QThread):
-    done  = Signal(list)
+class LoadParentsWorker(QThread):
+    done  = Signal(dict)
     error = Signal(str)
 
     def run(self):
         try:
             session = get_session()
+            from app.database import models
             unis = crud.list_universes(session)
-            result = [{"id": u.id, "name": u.name} for u in unis]
+            facs = session.query(models.Faction).all()
+            roots = session.query(models.RootEntity).all()
+            result = {
+                "universes": [{"id": u.id, "name": u.name} for u in unis],
+                "factions": [{"id": f.id, "name": f.name} for f in facs],
+                "root_entities": [{"id": r.id, "name": r.name} for r in roots]
+            }
             session.close()
             self.done.emit(result)
         except Exception as e:
@@ -273,8 +280,10 @@ class FactionFormPanel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._edit_id   = None
-        self._worker    = None
-        self._universes = []
+        self._worker        = None
+        self._universes     = []
+        self._factions      = []
+        self._root_entities = []
 
         self.setFixedWidth(390)
         self.setStyleSheet("QFrame { background: #111111; border-left: 1px solid #1E1E1E; }")
@@ -386,10 +395,30 @@ class FactionFormPanel(QFrame):
         """
 
         # Universe
-        lay.addWidget(_lbl("UNIVERSE  *"))
+        self.universe_label = _lbl("UNIVERSE")
+        lay.addWidget(self.universe_label)
         self.universe_combo = QComboBox()
         self.universe_combo.setStyleSheet(fs)
         lay.addWidget(self.universe_combo)
+
+        # Faction
+        self.faction_label = _lbl("FACTION")
+        lay.addWidget(self.faction_label)
+        self.faction_combo = QComboBox()
+        self.faction_combo.setStyleSheet(fs)
+        lay.addWidget(self.faction_combo)
+
+        # Root Entity
+        self.root_entity_label = _lbl("ROOT ENTITY")
+        lay.addWidget(self.root_entity_label)
+        self.root_entity_combo = QComboBox()
+        self.root_entity_combo.setStyleSheet(fs)
+        lay.addWidget(self.root_entity_combo)
+
+        # Exclusive selection logic
+        self.universe_combo.currentIndexChanged.connect(self._on_universe_changed)
+        self.faction_combo.currentIndexChanged.connect(self._on_faction_changed)
+        self.root_entity_combo.currentIndexChanged.connect(self._on_root_entity_changed)
 
         # Name
         lay.addWidget(_lbl("FACTION NAME  *"))
@@ -452,13 +481,86 @@ class FactionFormPanel(QFrame):
         scroll.setWidget(fw)
         main.addWidget(scroll)
 
-    # ── Universe dropdown ──────────────────────────────────
+    # ── Parent dropdowns ──────────────────────────────────
 
-    def set_universes(self, universes: list):
+    def set_parents(self, universes: list, factions: list, root_entities: list):
         self._universes = universes
+        self._factions = factions
+        self._root_entities = root_entities
+
+        self.universe_combo.blockSignals(True)
         self.universe_combo.clear()
+        self.universe_combo.addItem("None", None)
         for u in universes:
             self.universe_combo.addItem(u["name"], u["id"])
+        self.universe_combo.blockSignals(False)
+
+        self.faction_combo.blockSignals(True)
+        self.faction_combo.clear()
+        self.faction_combo.addItem("None", None)
+        for f in factions:
+            self.faction_combo.addItem(f["name"], f["id"])
+        self.faction_combo.blockSignals(False)
+
+        self.root_entity_combo.blockSignals(True)
+        self.root_entity_combo.clear()
+        self.root_entity_combo.addItem("None", None)
+        for r in root_entities:
+            self.root_entity_combo.addItem(r["name"], r["id"])
+        self.root_entity_combo.blockSignals(False)
+
+    # ── Exclusive Logic ────────────────────────────────────────
+
+    def _update_visibility(self):
+        u_val = self.universe_combo.currentData()
+        f_val = self.faction_combo.currentData()
+        r_val = self.root_entity_combo.currentData()
+
+        # If all are None, show all
+        if u_val is None and f_val is None and r_val is None:
+            self.universe_label.setVisible(True)
+            self.universe_combo.setVisible(True)
+            self.faction_label.setVisible(True)
+            self.faction_combo.setVisible(True)
+            self.root_entity_label.setVisible(True)
+            self.root_entity_combo.setVisible(True)
+        else:
+            self.universe_label.setVisible(u_val is not None)
+            self.universe_combo.setVisible(u_val is not None)
+            self.faction_label.setVisible(f_val is not None)
+            self.faction_combo.setVisible(f_val is not None)
+            self.root_entity_label.setVisible(r_val is not None)
+            self.root_entity_combo.setVisible(r_val is not None)
+
+    def _on_universe_changed(self, idx):
+        if self.universe_combo.itemData(idx) is not None:
+            self.faction_combo.blockSignals(True)
+            self.root_entity_combo.blockSignals(True)
+            self.faction_combo.setCurrentIndex(0)
+            self.root_entity_combo.setCurrentIndex(0)
+            self.faction_combo.blockSignals(False)
+            self.root_entity_combo.blockSignals(False)
+        self._update_visibility()
+
+    def _on_faction_changed(self, idx):
+        if self.faction_combo.itemData(idx) is not None:
+            self.universe_combo.blockSignals(True)
+            self.root_entity_combo.blockSignals(True)
+            self.universe_combo.setCurrentIndex(0)
+            self.root_entity_combo.setCurrentIndex(0)
+            self.universe_combo.blockSignals(False)
+            self.root_entity_combo.blockSignals(False)
+        self._update_visibility()
+
+    def _on_root_entity_changed(self, idx):
+        if self.root_entity_combo.itemData(idx) is not None:
+            self.universe_combo.blockSignals(True)
+            self.faction_combo.blockSignals(True)
+            self.universe_combo.setCurrentIndex(0)
+            self.faction_combo.setCurrentIndex(0)
+            self.universe_combo.blockSignals(False)
+            self.faction_combo.blockSignals(False)
+        self._update_visibility()
 
     # ── Public API ─────────────────────────────────────────
 
@@ -472,8 +574,13 @@ class FactionFormPanel(QFrame):
         self.ideology_input.clear()
         self.canon_combo.setCurrentIndex(0)
         self.score_slider.setValue(50)
-        if self.universe_combo.count():
+        if self.universe_combo.count() > 0:
             self.universe_combo.setCurrentIndex(0)
+        if self.faction_combo.count() > 0:
+            self.faction_combo.setCurrentIndex(0)
+        if self.root_entity_combo.count() > 0:
+            self.root_entity_combo.setCurrentIndex(0)
+        self._update_visibility()
 
     def open_edit(self, data: dict):
         self._edit_id = data["id"]
@@ -482,9 +589,18 @@ class FactionFormPanel(QFrame):
         self._save_btn.setEnabled(True)
 
         for i in range(self.universe_combo.count()):
-            if self.universe_combo.itemData(i) == data["universe_id"]:
+            if self.universe_combo.itemData(i) == data.get("universe_id"):
                 self.universe_combo.setCurrentIndex(i)
                 break
+        for i in range(self.faction_combo.count()):
+            if self.faction_combo.itemData(i) == data.get("faction_id"):
+                self.faction_combo.setCurrentIndex(i)
+                break
+        for i in range(self.root_entity_combo.count()):
+            if self.root_entity_combo.itemData(i) == data.get("root_entity_id"):
+                self.root_entity_combo.setCurrentIndex(i)
+                break
+        self._update_visibility()
 
         self.name_input.setText(data["name"])
         self.desc_input.setPlainText(data["description"])
@@ -507,12 +623,17 @@ class FactionFormPanel(QFrame):
             return
 
         uid = self.universe_combo.currentData()
-        if uid is None:
-            self._status.setText("⚠  Universe select karein!")
+        fid = self.faction_combo.currentData()
+        rid = self.root_entity_combo.currentData()
+
+        if uid is None and fid is None and rid is None:
+            self._status.setText("⚠  Koi parent select karein (Universe / Faction / Root)!")
             return
 
         payload = {
             "universe_id":      uid,
+            "faction_id":       fid,
+            "root_entity_id":   rid,
             "name":             name,
             "description":      self.desc_input.toPlainText().strip() or None,
             "ideology":         self.ideology_input.toPlainText().strip() or None,
@@ -556,8 +677,10 @@ class FactionsViewWidget(QWidget):
         self._delete_worker = None
         self._factions      = []
         self._universes     = []
+        self._all_factions  = []
+        self._root_entities = []
         self._setup_ui()
-        self._load_universes()
+        self._load_parents()
 
     # ── Build UI ──────────────────────────────────────────
 
@@ -695,38 +818,40 @@ class FactionsViewWidget(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         # Refresh universe list every time tab is opened
-        self._load_universes()
+        self._load_parents()
 
     # ── Universe loading ───────────────────────────────────
 
-    def _load_universes(self):
-        self._uni_worker = LoadUniversesForFacWorker()
-        self._uni_worker.done.connect(self._on_universes_loaded)
+    def _load_parents(self):
+        self._uni_worker = LoadParentsWorker()
+        self._uni_worker.done.connect(self._on_parents_loaded)
         self._uni_worker.error.connect(lambda _: self._load_factions())
         self._uni_worker.start()
 
-    def _on_universes_loaded(self, universes: list):
-        self._universes = universes
+    def _on_parents_loaded(self, data: dict):
+        self._universes = data["universes"]
+        self._all_factions = data["factions"]
+        self._root_entities = data["root_entities"]
 
         self._uni_combo.blockSignals(True)
         self._uni_combo.clear()
         self._uni_combo.addItem("All Universes", None)
-        for u in universes:
+        for u in self._universes:
             self._uni_combo.addItem(u["name"], u["id"])
         self._uni_combo.blockSignals(False)
 
-        self._form_panel.set_universes(universes)
+        self._form_panel.set_parents(self._universes, self._all_factions, self._root_entities)
         self._load_factions()
 
     # ── Panel open/close ──────────────────────────────────
 
     def _open_create(self):
-        self._form_panel.set_universes(self._universes)
+        self._form_panel.set_parents(self._universes, self._all_factions, self._root_entities)
         self._form_panel.open_create()
         self._form_panel.show()
 
     def _open_edit(self, data: dict):
-        self._form_panel.set_universes(self._universes)
+        self._form_panel.set_parents(self._universes, self._all_factions, self._root_entities)
         self._form_panel.open_edit(data)
         self._form_panel.show()
 

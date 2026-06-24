@@ -23,8 +23,19 @@ def build_universe_graph(session, universe_id):
     """Generates a graph of all entities and relationships within a single universe."""
     G = nx.Graph()
     
+    # Factions
+    factions = session.query(Faction).filter_by(universe_id=universe_id).all()
+    faction_ids = [f.id for f in factions] if factions else []
+
     # 1. Add Characters & Relationships
-    characters = session.query(Character).filter_by(universe_id=universe_id).all()
+    if faction_ids:
+        characters = session.query(Character).filter(
+            (Character.universe_id == universe_id) |
+            (Character.faction_id.in_(faction_ids))
+        ).all()
+    else:
+        characters = session.query(Character).filter_by(universe_id=universe_id).all()
+        
     char_ids = [c.id for c in characters]
     for c in characters:
         G.add_node(f"chr_{c.id}", label=c.name, group="character", title=c.species)
@@ -37,34 +48,47 @@ def build_universe_graph(session, universe_id):
             G.add_edge(f"chr_{r.character_a_id}", f"chr_{r.character_b_id}", label=r.edge_type, title=r.description)
 
     # 2. Add Factions
-    factions = session.query(Faction).filter_by(universe_id=universe_id).all()
+    # Fetch factions recursively or just those linked to universe
+    # To keep it simple, we include all factions linked to universe
     for f in factions:
         G.add_node(f"fac_{f.id}", label=f.name, group="faction", title=f.ideology)
-        if f.founder_id and G.has_node(f"chr_{f.founder_id}"):
+        if getattr(f, "founder_id", None) and G.has_node(f"chr_{f.founder_id}"):
             G.add_edge(f"chr_{f.founder_id}", f"fac_{f.id}", label="founded", title="Founder")
 
+    # Link characters to their factions
+    for c in characters:
+        if getattr(c, "faction_id", None) and G.has_node(f"fac_{c.faction_id}"):
+            G.add_edge(f"chr_{c.id}", f"fac_{c.faction_id}", label="member_of", title="Member")
+
     # 3. Add Artifacts
-    artifacts = session.query(Artifact).filter_by(universe_id=universe_id).all()
+    artifacts = session.query(Artifact).filter(
+        (Artifact.universe_id == universe_id) |
+        (Artifact.faction_id.in_(faction_ids) if faction_ids else False)
+    ).all()
     for a in artifacts:
         G.add_node(f"art_{a.id}", label=a.name, group="artifact")
-        if a.owner_id and G.has_node(f"chr_{a.owner_id}"):
+        if getattr(a, "owner_id", None) and G.has_node(f"chr_{a.owner_id}"):
             G.add_edge(f"chr_{a.owner_id}", f"art_{a.id}", label="owns", title="Owner")
 
-    # 4. Add Locations (Yeh block Events se UPAR aana chahiye)
-    locations = session.query(Location).filter_by(universe_id=universe_id).all()
+    # 4. Add Locations
+    locations = session.query(Location).filter(
+        (Location.universe_id == universe_id) |
+        (Location.faction_id.in_(faction_ids) if faction_ids else False)
+    ).all()
     for loc in locations:
         G.add_node(f"loc_{loc.id}", label=loc.name, group="location", title=loc.type)
 
-    # 5. Add Events (Ab jab Event add hoga, toh Locations graph mein majood hongi)
-    events = session.query(Event).filter_by(universe_id=universe_id).all()
+    # 5. Add Events
+    events = session.query(Event).filter(
+        (Event.universe_id == universe_id) |
+        (Event.faction_id.in_(faction_ids) if faction_ids else False)
+    ).all()
     for e in events:
         G.add_node(f"evt_{e.id}", label=e.name, group="event", title=e.date_label)
         for p in e.participants:
-            # Map entity_type to prefix (e.g., character -> chr)
             prefix_map = {'character': 'chr', 'faction': 'fac', 'location': 'loc', 'artifact': 'art'}
             prefix = prefix_map.get(p.entity_type, 'unknown')
             node_id = f"{prefix}_{p.entity_id}"
-            
             if G.has_node(node_id):
                 G.add_edge(node_id, f"evt_{e.id}", label="participated_in", title=p.role)
 
@@ -150,6 +174,18 @@ def build_root_entity_graph(session, root_entity_id):
             G.add_node(node_id, label=entity_name, group=link.entity_type)
             
         G.add_edge(f"root_{root.id}", node_id, label="linked_to", title=link.description or "")
+
+    # Also add entities linked directly via root_entity_id
+    for model, prefix in [
+        (Character, "chr"), (Faction, "fac"), (Location, "loc"),
+        (Artifact, "art"), (Event, "evt")
+    ]:
+        direct_items = session.query(model).filter_by(root_entity_id=root.id).all()
+        for item in direct_items:
+            node_id = f"{prefix}_{item.id}"
+            if not G.has_node(node_id):
+                G.add_node(node_id, label=item.name, group=prefix.replace('chr', 'character').replace('fac', 'faction').replace('loc', 'location').replace('art', 'artifact').replace('evt', 'event'))
+            G.add_edge(f"root_{root.id}", node_id, label="linked_to", title="Direct Connection")
 
     return G
 

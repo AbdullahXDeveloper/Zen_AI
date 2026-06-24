@@ -11,8 +11,10 @@ ENTITY_TYPE = "faction"
 
 def create_faction(
     session: Session,
-    universe_id: int,
     name: str,
+    universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     founder_id: int = None,
     ideology: str = None,
     description: str = None,
@@ -22,6 +24,8 @@ def create_faction(
 ) -> Faction:
     fac = Faction(
         universe_id=universe_id,
+        faction_id=faction_id,
+        root_entity_id=root_entity_id,
         name=name,
         founder_id=founder_id,
         ideology=ideology,
@@ -48,6 +52,8 @@ def get_faction_by_uuid(session: Session, uuid: str) -> Faction | None:
 def list_factions(
     session: Session,
     universe_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     canon_status: str = None,
     min_importance: int = None,
     name_contains: str = None,
@@ -56,6 +62,10 @@ def list_factions(
     q = session.query(Faction)
     if universe_id is not None:
         q = q.filter(Faction.universe_id == universe_id)
+    if faction_id is not None:
+        q = q.filter(Faction.faction_id == faction_id)
+    if root_entity_id is not None:
+        q = q.filter(Faction.root_entity_id == root_entity_id)
     if canon_status:
         q = q.filter(Faction.canon_status == canon_status)
     if min_importance is not None:
@@ -69,15 +79,15 @@ def list_factions(
 
 def update_faction(
     session: Session,
-    faction_id: int,
+    target_id: int,
     approved_by: str = "user",
     **kwargs,
 ) -> Faction | None:
-    fac = get_faction(session, faction_id)
+    fac = get_faction(session, target_id)
     if not fac:
         return None
 
-    allowed = {"universe_id", "name", "founder_id", "ideology", "description", "canon_status", "importance_score"}
+    allowed = {"universe_id", "faction_id", "root_entity_id", "name", "founder_id", "ideology", "description", "canon_status", "importance_score"}
     for key, val in kwargs.items():
         if key in allowed:
             setattr(fac, key, val)

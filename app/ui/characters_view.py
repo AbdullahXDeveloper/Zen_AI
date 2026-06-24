@@ -427,19 +427,22 @@ class CharacterFormPanel(QFrame):
         """
 
         # Universe
-        lay.addWidget(_lbl("UNIVERSE"))
+        self.universe_label = _lbl("UNIVERSE")
+        lay.addWidget(self.universe_label)
         self.universe_combo = QComboBox()
         self.universe_combo.setStyleSheet(fs)
         lay.addWidget(self.universe_combo)
 
         # Faction
-        lay.addWidget(_lbl("FACTION"))
+        self.faction_label = _lbl("FACTION")
+        lay.addWidget(self.faction_label)
         self.faction_combo = QComboBox()
         self.faction_combo.setStyleSheet(fs)
         lay.addWidget(self.faction_combo)
 
         # Root Entity
-        lay.addWidget(_lbl("ROOT ENTITY"))
+        self.root_entity_label = _lbl("ROOT ENTITY")
+        lay.addWidget(self.root_entity_label)
         self.root_entity_combo = QComboBox()
         self.root_entity_combo.setStyleSheet(fs)
         lay.addWidget(self.root_entity_combo)
@@ -550,6 +553,27 @@ class CharacterFormPanel(QFrame):
 
     # ── Exclusive Logic ────────────────────────────────────────
 
+    def _update_visibility(self):
+        u_val = self.universe_combo.currentData()
+        f_val = self.faction_combo.currentData()
+        r_val = self.root_entity_combo.currentData()
+
+        # If all are None, show all
+        if u_val is None and f_val is None and r_val is None:
+            self.universe_label.setVisible(True)
+            self.universe_combo.setVisible(True)
+            self.faction_label.setVisible(True)
+            self.faction_combo.setVisible(True)
+            self.root_entity_label.setVisible(True)
+            self.root_entity_combo.setVisible(True)
+        else:
+            self.universe_label.setVisible(u_val is not None)
+            self.universe_combo.setVisible(u_val is not None)
+            self.faction_label.setVisible(f_val is not None)
+            self.faction_combo.setVisible(f_val is not None)
+            self.root_entity_label.setVisible(r_val is not None)
+            self.root_entity_combo.setVisible(r_val is not None)
+
     def _on_universe_changed(self, idx):
         if self.universe_combo.itemData(idx) is not None:
             self.faction_combo.blockSignals(True)
@@ -558,6 +582,7 @@ class CharacterFormPanel(QFrame):
             self.root_entity_combo.setCurrentIndex(0)
             self.faction_combo.blockSignals(False)
             self.root_entity_combo.blockSignals(False)
+        self._update_visibility()
 
     def _on_faction_changed(self, idx):
         if self.faction_combo.itemData(idx) is not None:
@@ -567,6 +592,7 @@ class CharacterFormPanel(QFrame):
             self.root_entity_combo.setCurrentIndex(0)
             self.universe_combo.blockSignals(False)
             self.root_entity_combo.blockSignals(False)
+        self._update_visibility()
 
     def _on_root_entity_changed(self, idx):
         if self.root_entity_combo.itemData(idx) is not None:
@@ -576,6 +602,7 @@ class CharacterFormPanel(QFrame):
             self.faction_combo.setCurrentIndex(0)
             self.universe_combo.blockSignals(False)
             self.faction_combo.blockSignals(False)
+        self._update_visibility()
 
     # ── Dependencies dropdown ──────────────────────────────────
 
@@ -614,8 +641,13 @@ class CharacterFormPanel(QFrame):
         self._status.setText("")
         self._save_btn.setEnabled(True)
 
+        self.universe_combo.blockSignals(True)
+        self.faction_combo.blockSignals(True)
+        self.root_entity_combo.blockSignals(True)
+
+        self.universe_combo.setCurrentIndex(0)
         for i in range(self.universe_combo.count()):
-            if self.universe_combo.itemData(i) == data["universe_id"]:
+            if self.universe_combo.itemData(i) == data.get("universe_id"):
                 self.universe_combo.setCurrentIndex(i)
                 break
                 
@@ -630,6 +662,12 @@ class CharacterFormPanel(QFrame):
             if self.root_entity_combo.itemData(i) == data.get("root_entity_id"):
                 self.root_entity_combo.setCurrentIndex(i)
                 break
+
+        self.universe_combo.blockSignals(False)
+        self.faction_combo.blockSignals(False)
+        self.root_entity_combo.blockSignals(False)
+        
+        self._update_visibility()
 
         self.name_input.setText(data["name"])
         self.species_input.setText("" if data["species"] == "—" else data["species"])
@@ -657,12 +695,23 @@ class CharacterFormPanel(QFrame):
         self.ideology_input.clear()
         self.canon_combo.setCurrentIndex(0)
         self.score_slider.setValue(50)
+        
+        self.universe_combo.blockSignals(True)
+        self.faction_combo.blockSignals(True)
+        self.root_entity_combo.blockSignals(True)
+        
         if self.universe_combo.count():
             self.universe_combo.setCurrentIndex(0)
         if self.faction_combo.count():
             self.faction_combo.setCurrentIndex(0)
         if self.root_entity_combo.count():
             self.root_entity_combo.setCurrentIndex(0)
+            
+        self.universe_combo.blockSignals(False)
+        self.faction_combo.blockSignals(False)
+        self.root_entity_combo.blockSignals(False)
+        
+        self._update_visibility()
 
     def _cancel(self):
         """Close immediately."""
