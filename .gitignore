@@ -47,6 +47,7 @@ data/zenai.db-wal
 *.db
 *.sqlite
 *.sqlite3
+data/Zendrix_Master_Archive.json
 
 # ── FAISS Index & Embeddings Cache ──
 data/cache/

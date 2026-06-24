@@ -73,10 +73,10 @@ class LoadCharactersWorker(QThread):
                     "goals":            c.goals or "",
                     "ideology":         c.ideology or "",
                     "traits_json":      c.traits_json or {},
-                    "canon_status":     c.canon_status,
-                    "importance_score": c.importance_score,
                     "universe_id":      c.universe_id,
                     "universe_name":    c.universe.name if c.universe else "—",
+                    "faction_id":       c.faction_id,
+                    "root_entity_id":   c.root_entity_id,
                 }
                 for c in chars
             ]
@@ -90,15 +90,22 @@ class LoadCharactersWorker(QThread):
             if 'session' in locals(): session.close()
 
 
-class LoadUniversesForCharWorker(QThread):
-    done  = Signal(list)
+class LoadDependenciesForCharWorker(QThread):
+    done  = Signal(dict)
     error = Signal(str)
 
     def run(self):
         try:
             session = get_session()
+            from app.database import models
             unis = crud.list_universes(session)
-            result = [{"id": u.id, "name": u.name} for u in unis]
+            facs = session.query(models.Faction).all()
+            roots = session.query(models.RootEntity).all()
+            result = {
+                "universes": [{"id": u.id, "name": u.name} for u in unis],
+                "factions": [{"id": f.id, "name": f.name} for f in facs],
+                "root_entities": [{"id": r.id, "name": r.name} for r in roots]
+            }
             session.close()
             self.done.emit(result)
         except Exception as e:
@@ -302,9 +309,11 @@ class CharacterFormPanel(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._edit_id   = None
-        self._worker    = None
-        self._universes = []
+        self._edit_id       = None
+        self._worker        = None
+        self._universes     = []
+        self._factions      = []
+        self._root_entities = []
 
         self.setFixedWidth(400)
         self.setStyleSheet("QFrame { background: #111111; border-left: 1px solid #1E1E1E; }")
@@ -421,6 +430,18 @@ class CharacterFormPanel(QFrame):
         self.universe_combo.setStyleSheet(fs)
         lay.addWidget(self.universe_combo)
 
+        # Faction
+        lay.addWidget(_lbl("FACTION"))
+        self.faction_combo = QComboBox()
+        self.faction_combo.setStyleSheet(fs)
+        lay.addWidget(self.faction_combo)
+
+        # Root Entity
+        lay.addWidget(_lbl("ROOT ENTITY"))
+        self.root_entity_combo = QComboBox()
+        self.root_entity_combo.setStyleSheet(fs)
+        lay.addWidget(self.root_entity_combo)
+
         # Name
         lay.addWidget(_lbl("NAME  *"))
         self.name_input = QLineEdit()
@@ -520,13 +541,25 @@ class CharacterFormPanel(QFrame):
         scroll.setWidget(fw)
         main.addWidget(scroll)
 
-    # ── Universe dropdown ──────────────────────────────────
+    # ── Dependencies dropdown ──────────────────────────────────
 
-    def set_universes(self, universes: list):
-        self._universes = universes
+    def set_dependencies(self, deps: dict):
+        self._universes = deps.get("universes", [])
         self.universe_combo.clear()
-        for u in universes:
+        for u in self._universes:
             self.universe_combo.addItem(u["name"], u["id"])
+            
+        self._factions = deps.get("factions", [])
+        self.faction_combo.clear()
+        self.faction_combo.addItem("None", None)
+        for f in self._factions:
+            self.faction_combo.addItem(f["name"], f["id"])
+            
+        self._root_entities = deps.get("root_entities", [])
+        self.root_entity_combo.clear()
+        self.root_entity_combo.addItem("None", None)
+        for r in self._root_entities:
+            self.root_entity_combo.addItem(r["name"], r["id"])
 
     # ── Public API ─────────────────────────────────────────
 
@@ -547,6 +580,18 @@ class CharacterFormPanel(QFrame):
         for i in range(self.universe_combo.count()):
             if self.universe_combo.itemData(i) == data["universe_id"]:
                 self.universe_combo.setCurrentIndex(i)
+                break
+                
+        self.faction_combo.setCurrentIndex(0)
+        for i in range(self.faction_combo.count()):
+            if self.faction_combo.itemData(i) == data.get("faction_id"):
+                self.faction_combo.setCurrentIndex(i)
+                break
+
+        self.root_entity_combo.setCurrentIndex(0)
+        for i in range(self.root_entity_combo.count()):
+            if self.root_entity_combo.itemData(i) == data.get("root_entity_id"):
+                self.root_entity_combo.setCurrentIndex(i)
                 break
 
         self.name_input.setText(data["name"])
@@ -577,6 +622,10 @@ class CharacterFormPanel(QFrame):
         self.score_slider.setValue(50)
         if self.universe_combo.count():
             self.universe_combo.setCurrentIndex(0)
+        if self.faction_combo.count():
+            self.faction_combo.setCurrentIndex(0)
+        if self.root_entity_combo.count():
+            self.root_entity_combo.setCurrentIndex(0)
 
     def _cancel(self):
         """Close immediately."""
@@ -606,6 +655,8 @@ class CharacterFormPanel(QFrame):
             "ideology":         self.ideology_input.toPlainText().strip() or None,
             "canon_status":     self.canon_combo.currentData(),
             "importance_score": self.score_slider.value(),
+            "faction_id":       self.faction_combo.currentData(),
+            "root_entity_id":   self.root_entity_combo.currentData(),
         }
 
         self._save_btn.setEnabled(False)

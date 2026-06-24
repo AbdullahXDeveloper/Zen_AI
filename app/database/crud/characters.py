@@ -30,6 +30,8 @@ def create_character(
     canon_status: str = "canon",
     importance_score: int = 50,
     parent_character_id: int = None,
+    faction_id: int = None,
+    root_entity_id: int = None,
     approved_by: str = "user",
 ) -> Character:
     char = Character(
@@ -46,6 +48,8 @@ def create_character(
         canon_status=canon_status,
         importance_score=importance_score,
         parent_character_id=parent_character_id,
+        faction_id=faction_id,
+        root_entity_id=root_entity_id,
         version=1,
     )
     session.add(char)
@@ -113,6 +117,7 @@ def update_character(
         "universe_id", "name", "titles", "aliases", "species", "traits_json",
         "personality", "motivations", "goals", "ideology",
         "canon_status", "importance_score", "parent_character_id",
+        "faction_id", "root_entity_id"
     }
     for key, val in kwargs.items():
         if key in allowed:

@@ -159,10 +159,14 @@ class Character(Base):
     importance_score = Column(Integer, default=50)
     version = Column(Integer, default=1)
     parent_character_id = Column(Integer, ForeignKey("characters.id"), nullable=True)
+    faction_id = Column(Integer, ForeignKey("factions.id"), nullable=True)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     universe = relationship("Universe", back_populates="characters")
+    faction = relationship("Faction", foreign_keys=[faction_id], backref="characters")
+    root_entity = relationship("RootEntity", foreign_keys=[root_entity_id], backref="characters")
     variants = relationship(
         "Character",
         foreign_keys=[parent_character_id],

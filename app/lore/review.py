@@ -63,7 +63,7 @@ def approve_character(session, item: dict, universe_id: Optional[int] = None,
     return crud.create_character(
         session,
         name=item["name"],
-        description=item.get("description", ""),
+        personality=item.get("description", ""),
         universe_id=universe_id,
         importance_score=item.get("importance_score", 5),
         canon_status=item.get("canon_status", canon_status),
