@@ -834,28 +834,28 @@ class CharactersViewWidget(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        # Refresh universe list every time tab is opened (picks up newly added universes)
-        self._load_universes()
+        # Refresh dependencies every time tab is opened
+        self._load_dependencies()
 
-    # ── Universe loading ───────────────────────────────────
+    # ── Dependencies loading ───────────────────────────────────
 
-    def _load_universes(self):
-        self._uni_worker = LoadUniversesForCharWorker()
-        self._uni_worker.done.connect(self._on_universes_loaded)
-        self._uni_worker.error.connect(lambda _: self._load_characters())
-        self._uni_worker.start()
+    def _load_dependencies(self):
+        self._dep_worker = LoadDependenciesForCharWorker()
+        self._dep_worker.done.connect(self._on_dependencies_loaded)
+        self._dep_worker.error.connect(lambda _: self._load_characters())
+        self._dep_worker.start()
 
-    def _on_universes_loaded(self, universes: list):
-        self._universes = universes
+    def _on_dependencies_loaded(self, deps: dict):
+        self._universes = deps.get("universes", [])
 
         self._uni_combo.blockSignals(True)
         self._uni_combo.clear()
         self._uni_combo.addItem("All Universes", None)
-        for u in universes:
+        for u in self._universes:
             self._uni_combo.addItem(u["name"], u["id"])
         self._uni_combo.blockSignals(False)
 
-        self._form_panel.set_universes(universes)
+        self._form_panel.set_dependencies(deps)
         self._load_characters()
 
     # ── Panel open/close ──────────────────────────────────
