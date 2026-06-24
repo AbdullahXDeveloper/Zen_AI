@@ -73,6 +73,8 @@ class LoadCharactersWorker(QThread):
                     "goals":            c.goals or "",
                     "ideology":         c.ideology or "",
                     "traits_json":      c.traits_json or {},
+                    "canon_status":     c.canon_status,
+                    "importance_score": c.importance_score,
                     "universe_id":      c.universe_id,
                     "universe_name":    c.universe.name if c.universe else "—",
                     "faction_id":       c.faction_id,
@@ -425,7 +427,7 @@ class CharacterFormPanel(QFrame):
         """
 
         # Universe
-        lay.addWidget(_lbl("UNIVERSE  *"))
+        lay.addWidget(_lbl("UNIVERSE"))
         self.universe_combo = QComboBox()
         self.universe_combo.setStyleSheet(fs)
         lay.addWidget(self.universe_combo)
@@ -441,6 +443,11 @@ class CharacterFormPanel(QFrame):
         self.root_entity_combo = QComboBox()
         self.root_entity_combo.setStyleSheet(fs)
         lay.addWidget(self.root_entity_combo)
+
+        # Exclusive selection logic
+        self.universe_combo.currentIndexChanged.connect(self._on_universe_changed)
+        self.faction_combo.currentIndexChanged.connect(self._on_faction_changed)
+        self.root_entity_combo.currentIndexChanged.connect(self._on_root_entity_changed)
 
         # Name
         lay.addWidget(_lbl("NAME  *"))
@@ -541,11 +548,41 @@ class CharacterFormPanel(QFrame):
         scroll.setWidget(fw)
         main.addWidget(scroll)
 
+    # ── Exclusive Logic ────────────────────────────────────────
+
+    def _on_universe_changed(self, idx):
+        if self.universe_combo.itemData(idx) is not None:
+            self.faction_combo.blockSignals(True)
+            self.root_entity_combo.blockSignals(True)
+            self.faction_combo.setCurrentIndex(0)
+            self.root_entity_combo.setCurrentIndex(0)
+            self.faction_combo.blockSignals(False)
+            self.root_entity_combo.blockSignals(False)
+
+    def _on_faction_changed(self, idx):
+        if self.faction_combo.itemData(idx) is not None:
+            self.universe_combo.blockSignals(True)
+            self.root_entity_combo.blockSignals(True)
+            self.universe_combo.setCurrentIndex(0)
+            self.root_entity_combo.setCurrentIndex(0)
+            self.universe_combo.blockSignals(False)
+            self.root_entity_combo.blockSignals(False)
+
+    def _on_root_entity_changed(self, idx):
+        if self.root_entity_combo.itemData(idx) is not None:
+            self.universe_combo.blockSignals(True)
+            self.faction_combo.blockSignals(True)
+            self.universe_combo.setCurrentIndex(0)
+            self.faction_combo.setCurrentIndex(0)
+            self.universe_combo.blockSignals(False)
+            self.faction_combo.blockSignals(False)
+
     # ── Dependencies dropdown ──────────────────────────────────
 
     def set_dependencies(self, deps: dict):
         self._universes = deps.get("universes", [])
         self.universe_combo.clear()
+        self.universe_combo.addItem("None", None)
         for u in self._universes:
             self.universe_combo.addItem(u["name"], u["id"])
             
@@ -639,8 +676,12 @@ class CharacterFormPanel(QFrame):
             return
 
         uid = self.universe_combo.currentData()
-        if uid is None:
-            self._status.setText("⚠  Universe select karein!")
+        fid = self.faction_combo.currentData()
+        rid = self.root_entity_combo.currentData()
+
+        selected_count = sum(1 for x in [uid, fid, rid] if x is not None)
+        if selected_count != 1:
+            self._status.setText("⚠  Select exactly ONE connection (Universe, Faction, or Root Entity)!")
             return
 
         payload = {
@@ -691,12 +732,12 @@ class CharactersViewWidget(QWidget):
     def __init__(self):
         super().__init__()
         self._load_worker   = None
-        self._uni_worker    = None
+        self._dep_worker    = None
         self._delete_worker = None
         self._characters    = []
         self._universes     = []
         self._setup_ui()
-        self._load_universes()
+        self._load_dependencies()
 
     # ── Build UI ──────────────────────────────────────────
 
@@ -861,12 +902,10 @@ class CharactersViewWidget(QWidget):
     # ── Panel open/close ──────────────────────────────────
 
     def _open_create(self):
-        self._form_panel.set_universes(self._universes)
         self._form_panel.open_create()
         self._form_panel.show()
 
     def _open_edit(self, data: dict):
-        self._form_panel.set_universes(self._universes)
         self._form_panel.open_edit(data)
         self._form_panel.show()
 

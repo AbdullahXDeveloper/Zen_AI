@@ -145,7 +145,7 @@ class Character(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("chr"))
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=False)
+    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
     name = Column(String(255), nullable=False)
     titles = Column(Text)
     aliases = Column(Text)
