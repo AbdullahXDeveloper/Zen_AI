@@ -210,12 +210,12 @@ class GraphViewWidget(QWidget):
         if checked:
             self.edit_mode_btn.setText("✓  Disable Edit")
             self.edit_mode_btn.setStyleSheet(_btn_style().replace("#00ADB5", "#E74C3C")) # Different color when active
-            js = "if (typeof network !== 'undefined') { network.setOptions({ manipulation: { enabled: true } }); }"
+            js = "if (typeof window.setZenEditMode === 'function') { window.setZenEditMode(true); }"
             self.web_view.page().runJavaScript(js)
         else:
             self.edit_mode_btn.setText("✎  Enable Edit")
             self.edit_mode_btn.setStyleSheet(_btn_style())
-            js = "if (typeof network !== 'undefined') { network.setOptions({ manipulation: { enabled: false } }); }"
+            js = "if (typeof window.setZenEditMode === 'function') { window.setZenEditMode(false); }"
             self.web_view.page().runJavaScript(js)
 
     def _show_placeholder(self):

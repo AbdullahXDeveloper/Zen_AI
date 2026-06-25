@@ -269,22 +269,21 @@ def export_graph_to_html(nx_graph, output_path):
         html_content = f.read()
 
     js_injection = """
-    <script>
-      function configureManipulation(network) {
+        <script>
+      window.setZenEditMode = function(enable) {
+          if (typeof network === "undefined") return;
           network.setOptions({
               manipulation: {
-                  enabled: false,
-                  addNode: false, // Adding nodes visually is disabled
+                  enabled: enable,
+                  addNode: false,
                   addEdge: function(data, callback) {
                       if (data.from === data.to) {
                           var r = confirm("Do you want to connect the node to itself?");
                           if (!r) return;
                       }
                       var label = prompt("Enter connection label (optional):", "Connected");
-                      if (label === null) return; // Cancelled
-                      
+                      if (label === null) return;
                       console.log("ZEN_BRIDGE:ADD_EDGE:" + data.from + ":" + data.to + ":" + label);
-                      
                       data.label = label;
                       callback(data);
                   },
@@ -296,16 +295,13 @@ def export_graph_to_html(nx_graph, output_path):
                       }
                       callback(data);
                   },
-                  deleteNode: false // Deleting nodes visually is disabled
+                  deleteNode: false
               }
           });
-      }
+      };
       
-      // Hook into the draw event to ensure the network is initialized
       setTimeout(function() {
-          if (typeof network !== "undefined") {
-              configureManipulation(network);
-          }
+          window.setZenEditMode(false);
       }, 500);
     </script>
     """
