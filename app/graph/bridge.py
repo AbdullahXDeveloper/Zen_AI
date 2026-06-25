@@ -3,7 +3,7 @@ from PySide6.QtCore import QObject, Slot
 from app.database.db_init import get_session
 from app.database.models import (
     RelationshipEdge, UniverseConnection, EventParticipant,
-    RootEntityLink, Faction, Character, Location, Artifact
+    RootEntityLink, Faction, Character, Location, Artifact, EntityLink
 )
 
 class GraphBridge(QObject):
@@ -96,6 +96,23 @@ class GraphBridge(QObject):
                     a = session.query(Artifact).get(f_val)
                     if a: a.faction_id = t_val
 
+            # 6. Fallback: Universal Entity Link
+            else:
+                map_prefix = {
+                    'chr': 'character', 'fac': 'faction', 'loc': 'location', 
+                    'art': 'artifact', 'uni': 'universe', 'evt': 'event',
+                    'sto': 'story', 'cnode': 'cosmic_node', 'root': 'root_entity'
+                }
+                if f_prefix in map_prefix and t_prefix in map_prefix:
+                    link = EntityLink(
+                        source_entity_type=map_prefix[f_prefix],
+                        source_entity_id=f_val,
+                        target_entity_type=map_prefix[t_prefix],
+                        target_entity_id=t_val,
+                        link_name=label or "Linked visually"
+                    )
+                    session.add(link)
+
             session.commit()
             print("[GraphBridge] Edge successfully inserted into database.")
         except Exception as e:
@@ -181,6 +198,24 @@ class GraphBridge(QObject):
                 elif f_prefix == "art":
                     a = session.query(Artifact).get(f_val)
                     if a and a.faction_id == t_val: a.faction_id = None
+
+            else:
+                map_prefix = {
+                    'chr': 'character', 'fac': 'faction', 'loc': 'location', 
+                    'art': 'artifact', 'uni': 'universe', 'evt': 'event',
+                    'sto': 'story', 'cnode': 'cosmic_node', 'root': 'root_entity'
+                }
+                if f_prefix in map_prefix and t_prefix in map_prefix:
+                    session.query(EntityLink).filter(
+                        ((EntityLink.source_entity_type == map_prefix[f_prefix]) & 
+                         (EntityLink.source_entity_id == f_val) &
+                         (EntityLink.target_entity_type == map_prefix[t_prefix]) & 
+                         (EntityLink.target_entity_id == t_val)) |
+                        ((EntityLink.source_entity_type == map_prefix[t_prefix]) & 
+                         (EntityLink.source_entity_id == t_val) &
+                         (EntityLink.target_entity_type == map_prefix[f_prefix]) & 
+                         (EntityLink.target_entity_id == f_val))
+                    ).delete()
 
             session.commit()
             print("[GraphBridge] Edge successfully deleted from database.")

@@ -2,7 +2,8 @@ import networkx as nx
 from pyvis.network import Network
 from app.database.models import (
     Universe, UniverseConnection, Character, Faction, Location, 
-    Event, EventParticipant, Artifact, RelationshipEdge, RootEntity, RootEntityLink
+    Event, EventParticipant, Artifact, RelationshipEdge, RootEntity, RootEntityLink,
+    Story, EntityLink
 )
 
 def build_multiverse_graph(session):
@@ -92,6 +93,30 @@ def build_universe_graph(session, universe_id):
             if G.has_node(node_id):
                 G.add_edge(node_id, f"evt_{e.id}", label="participated_in", title=p.role)
 
+    # 6. Add Stories
+    stories = session.query(Story).filter(
+        (Story.universe_id == universe_id) |
+        (Story.faction_id.in_(faction_ids) if faction_ids else False)
+    ).all()
+    for s in stories:
+        G.add_node(f"sto_{s.id}", label=s.title, group="story", title=s.story_mode)
+
+    # 7. Add Universal Links (EntityLinks)
+    all_links = session.query(EntityLink).all()
+    prefix_map = {
+        "universe": "uni", "character": "chr", "faction": "fac",
+        "location": "loc", "artifact": "art", "event": "evt",
+        "story": "sto", "cosmic_node": "cnode", "root_entity": "root"
+    }
+    for el in all_links:
+        src_p = prefix_map.get(el.source_entity_type)
+        tgt_p = prefix_map.get(el.target_entity_type)
+        if src_p and tgt_p:
+            src_id = f"{src_p}_{el.source_entity_id}"
+            tgt_id = f"{tgt_p}_{el.target_entity_id}"
+            if G.has_node(src_id) and G.has_node(tgt_id):
+                G.add_edge(src_id, tgt_id, label=el.link_name or "Linked", title=el.link_name)
+
     return G
 
 
@@ -137,7 +162,7 @@ def build_root_entity_graph(session, root_entity_id):
     for link in root.links:
         prefix_map = {
             'character': 'chr', 'faction': 'fac', 'location': 'loc',
-            'event': 'evt', 'universe': 'uni', 'artifact': 'art'
+            'event': 'evt', 'universe': 'uni', 'artifact': 'art', 'story': 'sto'
         }
         prefix = prefix_map.get(link.entity_type, 'unknown')
         node_id = f"{prefix}_{link.entity_id}"
@@ -163,6 +188,9 @@ def build_root_entity_graph(session, root_entity_id):
             elif link.entity_type == 'event':
                 obj = session.query(Event).get(link.entity_id)
                 entity_name = obj.name if obj else None
+            elif link.entity_type == 'story':
+                obj = session.query(Story).get(link.entity_id)
+                entity_name = obj.title if obj else None
         except Exception:
             entity_name = None
         
@@ -178,14 +206,30 @@ def build_root_entity_graph(session, root_entity_id):
     # Also add entities linked directly via root_entity_id
     for model, prefix in [
         (Character, "chr"), (Faction, "fac"), (Location, "loc"),
-        (Artifact, "art"), (Event, "evt")
+        (Artifact, "art"), (Event, "evt"), (Story, "sto")
     ]:
         direct_items = session.query(model).filter_by(root_entity_id=root.id).all()
         for item in direct_items:
             node_id = f"{prefix}_{item.id}"
             if not G.has_node(node_id):
-                G.add_node(node_id, label=item.name, group=prefix.replace('chr', 'character').replace('fac', 'faction').replace('loc', 'location').replace('art', 'artifact').replace('evt', 'event'))
+                G.add_node(node_id, label=getattr(item, "name", getattr(item, "title", "Unknown")), group=prefix.replace('chr', 'character').replace('fac', 'faction').replace('loc', 'location').replace('art', 'artifact').replace('evt', 'event').replace('sto', 'story'))
             G.add_edge(f"root_{root.id}", node_id, label="linked_to", title="Direct Connection")
+
+    # Add Universal Links (EntityLinks)
+    all_links = session.query(EntityLink).all()
+    prefix_map = {
+        "universe": "uni", "character": "chr", "faction": "fac",
+        "location": "loc", "artifact": "art", "event": "evt",
+        "story": "sto", "cosmic_node": "cnode", "root_entity": "root"
+    }
+    for el in all_links:
+        src_p = prefix_map.get(el.source_entity_type)
+        tgt_p = prefix_map.get(el.target_entity_type)
+        if src_p and tgt_p:
+            src_id = f"{src_p}_{el.source_entity_id}"
+            tgt_id = f"{tgt_p}_{el.target_entity_id}"
+            if G.has_node(src_id) and G.has_node(tgt_id):
+                G.add_edge(src_id, tgt_id, label=el.link_name or "Linked", title=el.link_name)
 
     return G
 
@@ -205,7 +249,8 @@ def export_graph_to_html(nx_graph, output_path):
         "character": "#3498db", "character_main": "#e74c3c", 
         "faction": "#9b59b6", "event": "#e67e22", 
         "artifact": "#f1c40f", "location": "#2ecc71", 
-        "universe": "#1abc9c", "root_entity": "#FFD700"
+        "universe": "#1abc9c", "root_entity": "#FFD700",
+        "story": "#8e44ad"
     }
     
     for node in nx_graph.nodes(data=True):

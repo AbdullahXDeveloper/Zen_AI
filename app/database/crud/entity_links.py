@@ -3,7 +3,7 @@ ZenAI — CRUD: Entity Links
 """
 from sqlalchemy.orm import Session
 from app.database.models import (
-    EntityLink, Character, Faction, Location, Event, Artifact, Story, CosmicNode, Universe
+    EntityLink, Character, Faction, Location, Event, Artifact, Story, CosmicNode, Universe, RootEntity
 )
 
 def create_entity_link(
@@ -105,6 +105,8 @@ def list_entity_links(session: Session, source_type: str, source_id: int) -> lis
         "artifact": Artifact,
         "story": Story,
         "cosmic_node": CosmicNode,
+        "universe": Universe,
+        "root_entity": RootEntity,
     }
 
     result = []
@@ -157,6 +159,8 @@ def get_all_entities_for_picker(session: Session, entity_type: str) -> list[dict
         "artifact": Artifact,
         "story": Story,
         "cosmic_node": CosmicNode,
+        "universe": Universe,
+        "root_entity": RootEntity,
     }
     target_model = MODEL_MAP.get(entity_type)
     if not target_model:

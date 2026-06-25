@@ -31,7 +31,9 @@ ENTITY_ICONS = {
     "event": "⚡",
     "artifact": "💎",
     "story": "📖",
-    "cosmic_node": "🌌"
+    "cosmic_node": "🌌",
+    "universe": "🌐",
+    "root_entity": "★"
 }
 
 # ─────────────────────────────────────────────────────────

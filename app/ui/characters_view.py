@@ -123,9 +123,9 @@ class LoadDependenciesForCharWorker(QThread):
                 "universes":     [{"id": u.id, "name": u.name} for u in unis],
                 "factions":      [{"id": f.id, "name": f.name} for f in facs],
                 "root_entities": [{"id": r.id, "name": r.name} for r in roots],
-                "locations":     [{"id": l.id, "name": l.name} for l in locs],
-                "artifacts":     [{"id": a.id, "name": a.name} for a in arts],
-                "cosmic_nodes":  [{"id": n.id, "name": _uni_path(n)} for n in nodes],
+                "locations":     [{"id": l.id, "name": l.name, "universe_id": getattr(l, "universe_id", None)} for l in locs],
+                "artifacts":     [{"id": a.id, "name": a.name, "universe_id": getattr(a, "universe_id", None)} for a in arts],
+                "cosmic_nodes":  [{"id": n.id, "name": _uni_path(n), "universe_id": getattr(n, "universe_id", None)} for n in nodes],
             }
             session.close()
             self.done.emit(result)
@@ -685,6 +685,7 @@ class CharacterFormPanel(QFrame):
             self.root_entity_combo.blockSignals(False)
         self._update_visibility()
 
+        self._filter_dependency_combos()
     def _on_faction_changed(self, idx):
         if self.faction_combo.itemData(idx) is not None:
             self.universe_combo.blockSignals(True)
@@ -708,6 +709,7 @@ class CharacterFormPanel(QFrame):
     # ── Dependencies dropdown ──────────────────────────────────
 
     def set_dependencies(self, deps: dict):
+        self._all_deps = deps
         self._universes = deps.get("universes", [])
         self.universe_combo.clear()
         self.universe_combo.addItem("None", None)
@@ -877,6 +879,30 @@ class CharacterFormPanel(QFrame):
         )
         self._save_btn.setEnabled(True)
 
+
+
+    def _filter_dependency_combos(self):
+        uid = self.universe_combo.currentData() if hasattr(self, "universe_combo") else None
+        if not hasattr(self, '_all_deps') or not self._all_deps:
+            return
+        
+        def _repopulate(combo, key, current_val):
+            if combo is None: return
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem("None", None)
+            idx_to_select = 0
+            for item in self._all_deps.get(key, []):
+                if uid is None or item.get("universe_id") == uid or item.get("universe_id") is None:
+                    combo.addItem(item["name"], item["id"])
+                    if item["id"] == current_val:
+                        idx_to_select = combo.count() - 1
+            combo.setCurrentIndex(idx_to_select)
+            combo.blockSignals(False)
+
+        if hasattr(self, 'location_combo'): _repopulate(self.location_combo, "locations", self.location_combo.currentData())
+        if hasattr(self, 'artifact_combo'): _repopulate(self.artifact_combo, "artifacts", self.artifact_combo.currentData())
+        if hasattr(self, 'cosmic_node_combo'): _repopulate(self.cosmic_node_combo, "cosmic_nodes", self.cosmic_node_combo.currentData())
 
 # ─────────────────────────────────────────────────────────
 # Main Characters View
