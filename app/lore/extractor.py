@@ -162,18 +162,23 @@ def merge_extraction_results(results: list[dict]) -> dict:
                     merged[key].append(item)
 
         # Relationships: dedupe by (entity_a, entity_b, relationship_type)
+        # Build existing_keys ONCE outside the per-chunk loop (P2 fix: O(R) not O(R²))
+        existing_keys: set[tuple] = {
+            (
+                r.get("entity_a", "").strip().lower(),
+                r.get("entity_b", "").strip().lower(),
+                r.get("relationship_type", ""),
+            )
+            for r in merged["relationships"]
+        }
         for rel in result.get("relationships", []):
             rel_key = (
                 rel.get("entity_a", "").strip().lower(),
                 rel.get("entity_b", "").strip().lower(),
                 rel.get("relationship_type", ""),
             )
-            existing_keys = {
-                (r.get("entity_a", "").strip().lower(), r.get("entity_b", "").strip().lower(),
-                 r.get("relationship_type", ""))
-                for r in merged["relationships"]
-            }
             if rel_key not in existing_keys:
                 merged["relationships"].append(rel)
+                existing_keys.add(rel_key)  # keep set in sync
 
     return merged

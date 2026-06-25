@@ -105,15 +105,25 @@ class GraphBridge(QObject):
             session.close()
 
     @Slot(str)
-    def delete_edge(self, edge_id: str):
+    def delete_edge(self, edge_data: str):
         """
-        Called when the user selects an edge and deletes it.
-        Vis.js generates a UUID for edges by default if not provided.
-        Since we don't pass DB edge IDs to PyVis easily right now, deleting might be tricky 
-        if we only get the Vis.js edge ID.
-        We will rely on 'from' and 'to' instead.
+        Called when the user selects an edge and deletes it via the graph UI.
+
+        Vis.js passes edge data as a JSON string with at minimum 'from' and 'to'
+        fields (node IDs), e.g.: {"from": "chr_1", "to": "chr_2", "id": "..."}
+        We route to delete_edge_by_nodes which handles all entity type combinations.
         """
-        pass
+        try:
+            import json as _json
+            data = _json.loads(edge_data) if edge_data.strip().startswith("{") else {}
+            from_id = data.get("from", "")
+            to_id = data.get("to", "")
+            if from_id and to_id:
+                self.delete_edge_by_nodes(from_id, to_id)
+            else:
+                print(f"[GraphBridge] delete_edge: could not parse from/to from: {edge_data!r}")
+        except Exception as e:
+            print(f"[GraphBridge] delete_edge error: {e}")
     
     @Slot(str, str)
     def delete_edge_by_nodes(self, from_id: str, to_id: str):

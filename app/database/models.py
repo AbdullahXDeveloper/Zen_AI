@@ -69,8 +69,8 @@ class CosmicNode(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("csm"))
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=False)
-    parent_id = Column(Integer, ForeignKey("cosmic_nodes.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=False)
+    parent_id = Column(Integer, ForeignKey("cosmic_nodes.id"), index=True, nullable=True)
     name = Column(String(255), nullable=False)
     node_type = Column(String(50), default="custom")  # black_hole/galaxy/solar_system/planet/star/nebula/custom
     description = Column(Text)
@@ -97,8 +97,8 @@ class UniverseConnection(Base):
     __tablename__ = "universes_connections"
 
     id = Column(Integer, primary_key=True)
-    source_universe_id = Column(Integer, ForeignKey("universes.id"), nullable=False)
-    target_universe_id = Column(Integer, ForeignKey("universes.id"), nullable=False)
+    source_universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=False)
+    target_universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=False)
     connection_type = Column(String(100))  # e.g. "Connected Through War"
     description = Column(Text)
 
@@ -128,7 +128,7 @@ class RootEntityLink(Base):
     __tablename__ = "root_entity_links"
 
     id = Column(Integer, primary_key=True)
-    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=False)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=False)
     entity_type = Column(String(50), nullable=False)  # 'character','faction','location','event','universe','artifact'
     entity_id = Column(Integer, nullable=False)
     description = Column(Text)
@@ -145,7 +145,7 @@ class Character(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("chr"))
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
     name = Column(String(255), nullable=False)
     titles = Column(Text)
     aliases = Column(Text)
@@ -158,9 +158,9 @@ class Character(Base):
     canon_status = Column(String(50), default="canon")
     importance_score = Column(Integer, default=50)
     version = Column(Integer, default=1)
-    parent_character_id = Column(Integer, ForeignKey("characters.id"), nullable=True)
-    faction_id = Column(Integer, ForeignKey("factions.id"), nullable=True)
-    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=True)
+    parent_character_id = Column(Integer, ForeignKey("characters.id"), index=True, nullable=True)
+    faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -205,11 +205,11 @@ class Faction(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("fac"))
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
-    faction_id = Column(Integer, ForeignKey("factions.id"), nullable=True)
-    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
+    faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
     name = Column(String(255), nullable=False)
-    founder_id = Column(Integer, ForeignKey("characters.id"), nullable=True)
+    founder_id = Column(Integer, ForeignKey("characters.id"), index=True, nullable=True)
     ideology = Column(Text)
     description = Column(Text)
     canon_status = Column(String(50), default="canon")
@@ -230,9 +230,9 @@ class Location(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("loc"))
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
-    faction_id = Column(Integer, ForeignKey("factions.id"), nullable=True)
-    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
+    faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     type = Column(String(100))
@@ -263,8 +263,8 @@ class Power(Base):
 class CharacterPower(Base):
     __tablename__ = "character_powers"
 
-    character_id = Column(Integer, ForeignKey("characters.id"), primary_key=True)
-    power_id = Column(Integer, ForeignKey("powers.id"), primary_key=True)
+    character_id = Column(Integer, ForeignKey("characters.id"), index=True, primary_key=True)
+    power_id = Column(Integer, ForeignKey("powers.id"), index=True, primary_key=True)
     proficiency = Column(Integer, default=50)  # 0-100
 
     character = relationship("Character", back_populates="powers")
@@ -280,9 +280,9 @@ class Event(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("evt"))
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
-    faction_id = Column(Integer, ForeignKey("factions.id"), nullable=True)
-    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
+    faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     date_value = Column(String(100))  # sortable string/number representation
@@ -301,7 +301,7 @@ class EventParticipant(Base):
     __tablename__ = "event_participants"
 
     id = Column(Integer, primary_key=True)
-    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id"), index=True, nullable=False)
     entity_type = Column(String(50), nullable=False)  # 'character','faction','location', etc.
     entity_id = Column(Integer, nullable=False)
     role = Column(String(100))  # e.g. "attacker", "victim", "witness"
@@ -317,8 +317,8 @@ class RelationshipEdge(Base):
     __tablename__ = "relationships"
 
     id = Column(Integer, primary_key=True)
-    character_a_id = Column(Integer, ForeignKey("characters.id"), nullable=False)
-    character_b_id = Column(Integer, ForeignKey("characters.id"), nullable=False)
+    character_a_id = Column(Integer, ForeignKey("characters.id"), index=True, nullable=False)
+    character_b_id = Column(Integer, ForeignKey("characters.id"), index=True, nullable=False)
     edge_type = Column(String(50), nullable=False)
     # friend, enemy, family, mentor, student, created, destroyed, owns, located_in, participated_in
     description = Column(Text)
@@ -336,12 +336,12 @@ class Artifact(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("art"))
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
-    faction_id = Column(Integer, ForeignKey("factions.id"), nullable=True)
-    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
+    faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    owner_id = Column(Integer, ForeignKey("characters.id"), nullable=True)
+    owner_id = Column(Integer, ForeignKey("characters.id"), index=True, nullable=True)
     powers_json = Column(JSON, default=list)
     importance_score = Column(Integer, default=50)
 
@@ -366,9 +366,9 @@ class Story(Base):
     story_mode = Column(String(50), default="canon")
     # canon / non_canon / what_if / alt_timeline / rpg_sim
     canon_status = Column(String(50), default="canon")
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
-    faction_id = Column(Integer, ForeignKey("factions.id"), nullable=True)
-    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
+    faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
+    root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     universe = relationship("Universe", back_populates="stories")
@@ -389,7 +389,7 @@ class SimulationRun(Base):
     affected_entities_json = Column(JSON, default=list)
     generated_outcomes_json = Column(JSON, default=list)
     reasoning_text = Column(Text)
-    universe_id = Column(Integer, ForeignKey("universes.id"), nullable=True)
+    universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     universe = relationship("Universe", back_populates="simulation_runs")
@@ -444,7 +444,7 @@ class EntityTag(Base):
     id = Column(Integer, primary_key=True)
     entity_type = Column(String(50), nullable=False)
     entity_id = Column(Integer, nullable=False)
-    tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
+    tag_id = Column(Integer, ForeignKey("tags.id"), index=True, nullable=False)
 
     tag = relationship("Tag", back_populates="entity_links")
 

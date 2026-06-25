@@ -175,4 +175,6 @@ from app.database.crud.entity_links import (
     list_entity_links,
     delete_entity_link,
     get_all_entities_for_picker,
+    upsert_single_entity_link,
+    get_single_entity_link,
 )

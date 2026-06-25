@@ -27,6 +27,58 @@ def create_entity_link(
     return link
 
 
+def upsert_single_entity_link(
+    session: Session,
+    source_entity_type: str,
+    source_entity_id: int,
+    target_entity_type: str,
+    target_entity_id: int | None,
+) -> EntityLink | None:
+    """
+    Ensures at most ONE link of a given target_entity_type for a source entity.
+    - If target_entity_id is None  → deletes existing link (if any).
+    - If target_entity_id is set   → creates/replaces with the new target.
+    """
+    existing = session.query(EntityLink).filter(
+        EntityLink.source_entity_type == source_entity_type,
+        EntityLink.source_entity_id  == source_entity_id,
+        EntityLink.target_entity_type == target_entity_type,
+    ).first()
+
+    if target_entity_id is None:
+        if existing:
+            session.delete(existing)
+            session.commit()
+        return None
+
+    if existing:
+        existing.target_entity_id = target_entity_id
+        session.commit()
+        session.refresh(existing)
+        return existing
+
+    return create_entity_link(
+        session, source_entity_type, source_entity_id,
+        target_entity_type, target_entity_id,
+    )
+
+
+def get_single_entity_link(
+    session: Session,
+    source_entity_type: str,
+    source_entity_id: int,
+    target_entity_type: str,
+) -> int | None:
+    """Returns the target_entity_id of the single link for this type, or None."""
+    link = session.query(EntityLink).filter(
+        EntityLink.source_entity_type == source_entity_type,
+        EntityLink.source_entity_id  == source_entity_id,
+        EntityLink.target_entity_type == target_entity_type,
+    ).first()
+    return link.target_entity_id if link else None
+
+
+
 def delete_entity_link(session: Session, link_id: int):
     link = session.query(EntityLink).filter(EntityLink.id == link_id).first()
     if link:

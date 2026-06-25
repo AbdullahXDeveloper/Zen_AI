@@ -99,6 +99,8 @@ import_archive.py
 make_nullable.py
 migration_all_entities.py
 seed_dummy_data.py
+bulk_data.py
+create
 test*.html
 *test.html
 entity_dashboard.html

@@ -12,7 +12,8 @@ import os
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QScrollArea, QPushButton, QComboBox, QTextEdit,
-    QFileDialog, QSizePolicy, QProgressBar
+    QFileDialog, QSizePolicy, QProgressBar,
+    QDialog, QCheckBox, QTabWidget, QMessageBox, QApplication
 )
 from PySide6.QtCore import Qt, QThread, Signal
 
@@ -324,7 +325,21 @@ class LoreUploadViewWidget(QWidget):
         self._log(f"  💎 Artifacts  : {len(m.get('artifacts', []))}")
         self._log(f"  🔗 Relationships: {len(m.get('relationships', []))}")
         self._log("─" * 50)
-        self._log("[Zen AI] Extraction complete. Results reviewed aur approved ho jayein ge.")
+
+        total = sum(len(m.get(k, [])) for k in ("characters", "factions", "locations", "events", "artifacts", "relationships"))
+        if total == 0:
+            self._log("[Zen AI] No entities extracted. Try a different text.")
+            return
+
+        self._log("[Zen AI] Opening Review Dialog...")
+        universe_id = self._uni_combo.currentData()
+        dlg = LoreReviewDialog(result["merged_result"], universe_id=universe_id, parent=self)
+        dlg.approved.connect(self._on_review_approved)
+        dlg.exec()
+
+    def _on_review_approved(self, summary: str):
+        self._log(summary)
+        self._log("[Zen AI] ✓ Approved entities have been saved to the database!")
 
     def _on_error(self, msg: str):
         self._progress_bar.hide()
@@ -337,3 +352,211 @@ class LoreUploadViewWidget(QWidget):
         self._log_box.verticalScrollBar().setValue(
             self._log_box.verticalScrollBar().maximum()
         )
+
+
+# ─── Lore Review Dialog ──────────────────────────────────────────────────────
+class LoreReviewDialog(QDialog):
+    """
+    Phase 3 Human Review UI.
+    Shows extracted entities / relationships as checkboxes.
+    User selects which ones to approve, then clicks 'Approve Selected'.
+    """
+    approved = Signal(str)  # emits a summary string
+
+    _SECTION_ICONS = {
+        "characters":    "👤 Characters",
+        "factions":      "⚔  Factions",
+        "locations":     "📍 Locations",
+        "events":        "📅 Events",
+        "artifacts":     "💎 Artifacts",
+        "relationships": "🔗 Relationships",
+    }
+
+    def __init__(self, merged_result: dict, universe_id=None, parent=None):
+        super().__init__(parent)
+        self._merged  = merged_result
+        self._uni_id  = universe_id
+        self._checks: dict[str, list[QCheckBox]] = {}
+        self.setWindowTitle("Zen AI — Lore Extraction Review")
+        self.setMinimumSize(820, 580)
+        self.setStyleSheet("""
+            QDialog   { background: #0D0D0D; }
+            QTabWidget::pane { border: 1px solid #1A1A1A; background: #0D0D0D; }
+            QTabBar::tab { background: #111; color: #555; padding: 8px 20px;
+                           border: 1px solid #1A1A1A; border-bottom: none;
+                           font-size: 12px; font-weight: 600; }
+            QTabBar::tab:selected { background: #0D0D0D; color: #e67e22; }
+            QCheckBox { color: #CCC; font-size: 13px; padding: 4px 0; }
+            QCheckBox::indicator { width: 16px; height: 16px;
+                                   border: 1px solid #333; border-radius: 4px;
+                                   background: #111; }
+            QCheckBox::indicator:checked { background: #e67e22; border-color: #e67e22; }
+            QLabel    { color: #888; }
+            QScrollArea { border: none; background: #0D0D0D; }
+        """)
+        self._build_ui()
+
+    def _build_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(20, 20, 20, 16)
+        root.setSpacing(12)
+
+        header = QLabel("Review extracted entities and relationships. Uncheck any you want to skip.")
+        header.setStyleSheet("color: #888; font-size: 12px;")
+        root.addWidget(header)
+
+        tabs = QTabWidget()
+        root.addWidget(tabs)
+
+        for key, label in self._SECTION_ICONS.items():
+            items = self._merged.get(key, [])
+            tab_label = f"{label}  ({len(items)})"
+            tab = QWidget()
+            tab_lay = QVBoxLayout(tab)
+            tab_lay.setContentsMargins(12, 12, 12, 12)
+            tab_lay.setSpacing(0)
+
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            inner = QWidget()
+            inner.setStyleSheet("background: #0D0D0D;")
+            inner_lay = QVBoxLayout(inner)
+            inner_lay.setSpacing(2)
+
+            self._checks[key] = []
+            if not items:
+                placeholder = QLabel("— No items extracted —")
+                placeholder.setAlignment(Qt.AlignCenter)
+                inner_lay.addWidget(placeholder)
+            else:
+                for item in items:
+                    name = item.get("name") or f"{item.get('entity_a','?')} → {item.get('entity_b','?')}"
+                    desc = item.get("description", item.get("relationship_type", ""))
+                    is_new = item.get("is_new", True)
+                    importance = item.get("importance_score", "")
+
+                    row = QHBoxLayout()
+                    cb = QCheckBox()
+                    cb.setChecked(True)  # default: all approved
+                    self._checks[key].append(cb)
+
+                    txt = QLabel()
+                    new_badge = " <span style='color:#27ae60; font-size:10px;'>[NEW]</span>" if is_new else ""
+                    score_badge = f" <span style='color:#555; font-size:10px;'>⭐{importance}</span>" if importance else ""
+                    txt.setText(
+                        f"<b style='color:#CCC;'>{name}</b>{new_badge}{score_badge}"
+                        + (f"<br><span style='color:#555; font-size:11px;'>{desc[:120]}</span>" if desc else "")
+                    )
+                    txt.setWordWrap(True)
+
+                    row.addWidget(cb, 0)
+                    row.addWidget(txt, 1)
+                    inner_lay.addLayout(row)
+
+                    sep = QFrame()
+                    sep.setFrameShape(QFrame.HLine)
+                    sep.setStyleSheet("color: #1A1A1A;")
+                    inner_lay.addWidget(sep)
+
+            inner_lay.addStretch()
+            scroll.setWidget(inner)
+            tab_lay.addWidget(scroll)
+            tabs.addTab(tab, tab_label)
+
+        # ── Buttons ──
+        btn_row = QHBoxLayout()
+
+        select_all_btn = QPushButton("Select All")
+        select_all_btn.setStyleSheet("background: #111; color: #888; border: 1px solid #222; border-radius: 6px; padding: 6px 16px;")
+        select_all_btn.clicked.connect(self._select_all)
+
+        deselect_btn = QPushButton("Deselect All")
+        deselect_btn.setStyleSheet("background: #111; color: #888; border: 1px solid #222; border-radius: 6px; padding: 6px 16px;")
+        deselect_btn.clicked.connect(self._deselect_all)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet("background: transparent; color: #555; border: 1px solid #222; border-radius: 6px; padding: 6px 20px;")
+        cancel_btn.clicked.connect(self.reject)
+
+        approve_btn = QPushButton("✓  Approve Selected")
+        approve_btn.setFixedHeight(38)
+        approve_btn.setStyleSheet("""
+            QPushButton {
+                background: #e67e22; color: #000;
+                border: none; border-radius: 8px;
+                font-size: 13px; font-weight: 700;
+                padding: 0 24px;
+            }
+            QPushButton:hover { background: #f39c12; }
+        """)
+        approve_btn.clicked.connect(self._approve)
+
+        btn_row.addWidget(select_all_btn)
+        btn_row.addWidget(deselect_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(cancel_btn)
+        btn_row.addWidget(approve_btn)
+        root.addLayout(btn_row)
+
+    # ── Actions ──────────────────────────────────────────────────────────────
+
+    def _select_all(self):
+        for cbs in self._checks.values():
+            for cb in cbs:
+                cb.setChecked(True)
+
+    def _deselect_all(self):
+        for cbs in self._checks.values():
+            for cb in cbs:
+                cb.setChecked(False)
+
+    def _approve(self):
+        from app.database.db_init import get_session
+        from app.lore import review
+
+        # Build approved_indices dict
+        approved_indices: dict[str, list[int]] = {}
+        key_map = {
+            "characters":    "character",
+            "factions":      "faction",
+            "locations":     "location",
+            "events":        "event",
+            "artifacts":     "artifact",
+        }
+        for plural_key, cbs in self._checks.items():
+            singular = key_map.get(plural_key, plural_key)
+            approved_indices[singular if plural_key != "relationships" else "relationships"] = [
+                i for i, cb in enumerate(cbs) if cb.isChecked()
+            ]
+
+        session = get_session()
+        try:
+            result = review.approve_all(
+                session,
+                merged_result=self._merged,
+                approved_indices=approved_indices,
+                universe_id=self._uni_id,
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Approval Error", str(e))
+            session.close()
+            return
+        finally:
+            session.close()
+
+        # Build summary
+        created = result.get("created", {})
+        total_created = sum(len(v) for v in created.values())
+        unresolved_rels = len(result.get("unresolved_relationships", []))
+        events_unresolved = len(result.get("events_with_unresolved_participants", []))
+
+        lines = [f"[Review] ✓ {total_created} entities approved and saved."]
+        if unresolved_rels:
+            lines.append(f"[Review] ⚠ {unresolved_rels} relationship(s) could not be resolved (entities not yet in DB).")
+        if events_unresolved:
+            lines.append(f"[Review] ⚠ {events_unresolved} event(s) had unresolved participant names.")
+
+        self.approved.emit("\n".join(lines))
+        self.accept()

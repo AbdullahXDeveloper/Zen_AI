@@ -102,8 +102,22 @@ def chunk_text(text: str, max_chars: int = 6000, overlap: int = 200) -> list[str
         else:
             if current:
                 chunks.append(current)
-                # carry overlap from end of previous chunk
-                current = current[-overlap:] + "\n\n" + para if overlap else para
+                # Carry overlap from end of previous chunk (P2 fix: validate combined length)
+                if overlap:
+                    overlap_text = current[-overlap:]
+                    candidate = overlap_text + "\n\n" + para
+                    if len(candidate) > max_chars:
+                        # Para alone is fine; skip the overlap to stay under limit
+                        current = para
+                    else:
+                        current = candidate
+                else:
+                    current = para
+                # If the paragraph itself exceeds max_chars, hard-split it immediately
+                if len(current) > max_chars:
+                    for i in range(0, len(current), max_chars):
+                        chunks.append(current[i:i + max_chars])
+                    current = ""
             else:
                 # single paragraph longer than max_chars — hard split
                 for i in range(0, len(para), max_chars):

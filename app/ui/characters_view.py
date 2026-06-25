@@ -100,13 +100,32 @@ class LoadDependenciesForCharWorker(QThread):
         try:
             session = get_session()
             from app.database import models
-            unis = crud.list_universes(session)
-            facs = session.query(models.Faction).all()
+            unis  = crud.list_universes(session)
+            facs  = session.query(models.Faction).all()
             roots = session.query(models.RootEntity).all()
+            locs  = session.query(models.Location).order_by(models.Location.name).all()
+            arts  = session.query(models.Artifact).order_by(models.Artifact.name).all()
+            nodes = session.query(models.CosmicNode).order_by(models.CosmicNode.name).all()
+
+            def _uni_path(node):
+                """Build 'Parent > Child > Node' label for a CosmicNode."""
+                parts = [node.name]
+                cur = node
+                while cur.parent_id:
+                    cur = session.query(models.CosmicNode).filter(
+                        models.CosmicNode.id == cur.parent_id).first()
+                    if not cur:
+                        break
+                    parts.insert(0, cur.name)
+                return " > ".join(parts)
+
             result = {
-                "universes": [{"id": u.id, "name": u.name} for u in unis],
-                "factions": [{"id": f.id, "name": f.name} for f in facs],
-                "root_entities": [{"id": r.id, "name": r.name} for r in roots]
+                "universes":     [{"id": u.id, "name": u.name} for u in unis],
+                "factions":      [{"id": f.id, "name": f.name} for f in facs],
+                "root_entities": [{"id": r.id, "name": r.name} for r in roots],
+                "locations":     [{"id": l.id, "name": l.name} for l in locs],
+                "artifacts":     [{"id": a.id, "name": a.name} for a in arts],
+                "cosmic_nodes":  [{"id": n.id, "name": _uni_path(n)} for n in nodes],
             }
             session.close()
             self.done.emit(result)
@@ -122,18 +141,29 @@ class SaveCharacterWorker(QThread):
     done  = Signal(str)
     error = Signal(str)
 
-    def __init__(self, data: dict, character_id: int = None):
+    def __init__(self, data: dict, character_id: int = None,
+                 chain_links: dict = None):
         super().__init__()
         self.data         = data
         self.character_id = character_id
+        self.chain_links  = chain_links or {}   # {target_type: target_id_or_None}
 
     def run(self):
         try:
             session = get_session()
             if self.character_id:
-                crud.update_character(session, self.character_id, **self.data)
+                char = crud.update_character(session, self.character_id, **self.data)
+                char_id = self.character_id
             else:
-                crud.create_character(session, **self.data)
+                char = crud.create_character(session, **self.data)
+                char_id = char.id
+
+            # Persist single-link chains (location / artifact / cosmic_node)
+            for t_type, t_id in self.chain_links.items():
+                crud.upsert_single_entity_link(
+                    session, "character", char_id, t_type, t_id
+                )
+
             session.close()
             self.done.emit("ok")
         except Exception as e:
@@ -162,6 +192,41 @@ class DeleteCharacterWorker(QThread):
             import traceback
             traceback.print_exc()
             self.error.emit(str(e))
+        finally:
+            if 'session' in locals(): session.close()
+
+
+
+class _ChainLoad(QThread):
+    """Loads the 3 single-link chains for a Character and pre-selects dropdowns."""
+
+    def __init__(self, character_id: int, panel):
+        super().__init__()
+        self._char_id = character_id
+        self._panel   = panel
+
+    def run(self):
+        try:
+            session = get_session()
+            for t_type in ("location", "artifact", "cosmic_node"):
+                t_id = crud.get_single_entity_link(session, "character", self._char_id, t_type)
+                combo = getattr(self._panel, f"{t_type}_combo", None)
+                if combo is None:
+                    continue
+                # Select matching item (safe, Qt is thread-safe for data reads)
+                from PySide6.QtCore import QMetaObject, Qt as _Qt
+                def _select(cb=combo, val=t_id):
+                    cb.blockSignals(True)
+                    cb.setCurrentIndex(0)
+                    for i in range(cb.count()):
+                        if cb.itemData(i) == val:
+                            cb.setCurrentIndex(i)
+                            break
+                    cb.blockSignals(False)
+                QMetaObject.invokeMethod(combo, lambda: _select(), _Qt.QueuedConnection)
+            session.close()
+        except Exception:
+            import traceback; traceback.print_exc()
         finally:
             if 'session' in locals(): session.close()
 
@@ -426,6 +491,19 @@ class CharacterFormPanel(QFrame):
             }
         """
 
+        def _cat_lbl(text):
+            """Bold teal category separator label."""
+            sep = QLabel(text)
+            sep.setStyleSheet(
+                "color: #00ADB5; font-size: 9px; font-weight: 800; "
+                "letter-spacing: 2px; background: transparent; border: none; "
+                "margin-top: 10px;"
+            )
+            return sep
+
+        # ── Category: WORLD ──────────────────────────────────
+        lay.addWidget(_cat_lbl("── WORLD"))
+
         # Universe
         self.universe_label = _lbl("UNIVERSE")
         lay.addWidget(self.universe_label)
@@ -447,10 +525,33 @@ class CharacterFormPanel(QFrame):
         self.root_entity_combo.setStyleSheet(fs)
         lay.addWidget(self.root_entity_combo)
 
-        # Exclusive selection logic
+        # ── Category: PLACE ──────────────────────────────────
+        lay.addWidget(_cat_lbl("── PLACE"))
+        lay.addWidget(_lbl("LOCATION"))
+        self.location_combo = QComboBox()
+        self.location_combo.setStyleSheet(fs)
+        lay.addWidget(self.location_combo)
+
+        # ── Category: ITEM ───────────────────────────────────
+        lay.addWidget(_cat_lbl("── ITEM"))
+        lay.addWidget(_lbl("ARTIFACT"))
+        self.artifact_combo = QComboBox()
+        self.artifact_combo.setStyleSheet(fs)
+        lay.addWidget(self.artifact_combo)
+
+        # ── Category: COSMIC ─────────────────────────────────
+        lay.addWidget(_cat_lbl("── COSMIC"))
+        lay.addWidget(_lbl("COSMIC NODE  (Universe child/sub-child)"))
+        self.cosmic_node_combo = QComboBox()
+        self.cosmic_node_combo.setStyleSheet(fs)
+        lay.addWidget(self.cosmic_node_combo)
+
+        # Exclusive selection logic (Universe / Faction / Root Entity only)
         self.universe_combo.currentIndexChanged.connect(self._on_universe_changed)
         self.faction_combo.currentIndexChanged.connect(self._on_faction_changed)
         self.root_entity_combo.currentIndexChanged.connect(self._on_root_entity_changed)
+
+        lay.addWidget(_cat_lbl("── INFO"))
 
         # Name
         lay.addWidget(_lbl("NAME  *"))
@@ -612,18 +713,33 @@ class CharacterFormPanel(QFrame):
         self.universe_combo.addItem("None", None)
         for u in self._universes:
             self.universe_combo.addItem(u["name"], u["id"])
-            
+
         self._factions = deps.get("factions", [])
         self.faction_combo.clear()
         self.faction_combo.addItem("None", None)
         for f in self._factions:
             self.faction_combo.addItem(f["name"], f["id"])
-            
+
         self._root_entities = deps.get("root_entities", [])
         self.root_entity_combo.clear()
         self.root_entity_combo.addItem("None", None)
         for r in self._root_entities:
             self.root_entity_combo.addItem(r["name"], r["id"])
+
+        self.location_combo.clear()
+        self.location_combo.addItem("None", None)
+        for l in deps.get("locations", []):
+            self.location_combo.addItem(l["name"], l["id"])
+
+        self.artifact_combo.clear()
+        self.artifact_combo.addItem("None", None)
+        for a in deps.get("artifacts", []):
+            self.artifact_combo.addItem(a["name"], a["id"])
+
+        self.cosmic_node_combo.clear()
+        self.cosmic_node_combo.addItem("None", None)
+        for n in deps.get("cosmic_nodes", []):
+            self.cosmic_node_combo.addItem(n["name"], n["id"])
 
     # ── Public API ─────────────────────────────────────────
 
@@ -645,29 +761,25 @@ class CharacterFormPanel(QFrame):
         self.faction_combo.blockSignals(True)
         self.root_entity_combo.blockSignals(True)
 
-        self.universe_combo.setCurrentIndex(0)
-        for i in range(self.universe_combo.count()):
-            if self.universe_combo.itemData(i) == data.get("universe_id"):
-                self.universe_combo.setCurrentIndex(i)
-                break
-                
-        self.faction_combo.setCurrentIndex(0)
-        for i in range(self.faction_combo.count()):
-            if self.faction_combo.itemData(i) == data.get("faction_id"):
-                self.faction_combo.setCurrentIndex(i)
-                break
+        def _select(combo, val):
+            combo.setCurrentIndex(0)
+            for i in range(combo.count()):
+                if combo.itemData(i) == val:
+                    combo.setCurrentIndex(i)
+                    break
 
-        self.root_entity_combo.setCurrentIndex(0)
-        for i in range(self.root_entity_combo.count()):
-            if self.root_entity_combo.itemData(i) == data.get("root_entity_id"):
-                self.root_entity_combo.setCurrentIndex(i)
-                break
+        _select(self.universe_combo,    data.get("universe_id"))
+        _select(self.faction_combo,     data.get("faction_id"))
+        _select(self.root_entity_combo, data.get("root_entity_id"))
 
         self.universe_combo.blockSignals(False)
         self.faction_combo.blockSignals(False)
         self.root_entity_combo.blockSignals(False)
-        
         self._update_visibility()
+
+        # Load single chain-links from EntityLink table
+        char_id = data["id"]
+        _ChainLoad(char_id, self).start()
 
         self.name_input.setText(data["name"])
         self.species_input.setText("" if data["species"] == "—" else data["species"])
@@ -695,22 +807,14 @@ class CharacterFormPanel(QFrame):
         self.ideology_input.clear()
         self.canon_combo.setCurrentIndex(0)
         self.score_slider.setValue(50)
-        
-        self.universe_combo.blockSignals(True)
-        self.faction_combo.blockSignals(True)
-        self.root_entity_combo.blockSignals(True)
-        
-        if self.universe_combo.count():
-            self.universe_combo.setCurrentIndex(0)
-        if self.faction_combo.count():
-            self.faction_combo.setCurrentIndex(0)
-        if self.root_entity_combo.count():
-            self.root_entity_combo.setCurrentIndex(0)
-            
-        self.universe_combo.blockSignals(False)
-        self.faction_combo.blockSignals(False)
-        self.root_entity_combo.blockSignals(False)
-        
+
+        for cb in (self.universe_combo, self.faction_combo, self.root_entity_combo,
+                   self.location_combo, self.artifact_combo, self.cosmic_node_combo):
+            cb.blockSignals(True)
+            if cb.count():
+                cb.setCurrentIndex(0)
+            cb.blockSignals(False)
+
         self._update_visibility()
 
     def _cancel(self):
@@ -755,7 +859,7 @@ class CharacterFormPanel(QFrame):
             "color: #9b59b6; font-size: 11px; background: transparent; border: none;"
         )
 
-        self._worker = SaveCharacterWorker(payload, self._edit_id)
+        self._worker = SaveCharacterWorker(payload, self._edit_id, chain_links)
         self._worker.done.connect(self._on_saved)
         self._worker.error.connect(self._on_error)
         self._worker.start()

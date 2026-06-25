@@ -18,38 +18,56 @@ that reference other entities by name).
 from typing import Optional
 
 from app.database import crud
+from app.database.models import Character, Faction, Location, Event, Artifact, Universe
+
+
+# Model registry for DB-level name lookups (P1 optimization)
+_MODEL_REGISTRY = [
+    ("character", Character),
+    ("faction",   Faction),
+    ("location",  Location),
+    ("event",     Event),
+    ("artifact",  Artifact),
+    ("universe",  Universe),
+]
 
 
 # ----------------------------------------------------------------------
-# Name -> ID resolution
+# Name -> ID resolution  (P1: DB-level filter, no full table scan)
 # ----------------------------------------------------------------------
 def _find_entity_by_name(session, name: str) -> Optional[dict]:
     """
-    Search across entity types for an exact (case-insensitive) name match.
+    Search across entity types for an exact (case-insensitive) name match
+    using database-level LIKE queries — avoids loading all rows into memory.
+
     Returns {"entity_type": str, "id": int, "uuid": str} or None.
     """
-    name_lower = name.strip().lower()
+    name_stripped = name.strip()
 
-    lookups = [
-        ("character", crud.list_characters),
-        ("faction", crud.list_factions),
-        ("location", crud.list_locations),
-        ("event", crud.list_events),
-        ("artifact", crud.list_artifacts),
-        ("universe", crud.list_universes),
-    ]
-    if hasattr(crud, "list_root_entities"):
-        lookups.append(("root_entity", crud.list_root_entities))
-
-    for entity_type, list_fn in lookups:
+    for entity_type, model in _MODEL_REGISTRY:
         try:
-            entities = list_fn(session)
-        except TypeError:
-            entities = []
-        for ent in entities:
-            ent_name = getattr(ent, "name", None)
-            if ent_name and ent_name.strip().lower() == name_lower:
-                return {"entity_type": entity_type, "id": ent.id, "uuid": getattr(ent, "uuid", "")}
+            ent = (
+                session.query(model)
+                .filter(model.name.ilike(name_stripped))
+                .first()
+            )
+            if ent:
+                return {
+                    "entity_type": entity_type,
+                    "id": ent.id,
+                    "uuid": getattr(ent, "uuid", ""),
+                }
+        except Exception:
+            continue
+
+    # Fallback: root entities (not all projects have this model)
+    try:
+        from app.database.models import RootEntity
+        ent = session.query(RootEntity).filter(RootEntity.name.ilike(name_stripped)).first()
+        if ent:
+            return {"entity_type": "root_entity", "id": ent.id, "uuid": getattr(ent, "uuid", "")}
+    except Exception:
+        pass
 
     return None
 
@@ -154,10 +172,13 @@ def approve_relationship(session, item: dict) -> Optional[object]:
     """
     Persist an approved relationship extraction item. Resolves entity_a
     and entity_b by name; if either is not found, returns None and the
-    caller should surface this for manual resolution (the entity may
-    need to be approved first).
+    caller should surface this for manual resolution.
 
-    Returns the created relationship record, or None if unresolved.
+    Routing logic:
+      - Both sides are characters  → RelationshipEdge (character graph)
+      - Any other combination      → EntityLink (generic cross-entity link)
+
+    Returns the created record, or None if either entity is unresolved.
     """
     a = _find_entity_by_name(session, item["entity_a"])
     b = _find_entity_by_name(session, item["entity_b"])
@@ -165,15 +186,37 @@ def approve_relationship(session, item: dict) -> Optional[object]:
     if not a or not b:
         return None
 
-    if not hasattr(crud, "create_relationship"):
-        return None
+    rel_type = item.get("relationship_type", "other")
+    description = item.get("description", "")
 
-    return crud.create_relationship(
+    # --- Character ↔ Character: use the dedicated RelationshipEdge table ---
+    if a["entity_type"] == "character" and b["entity_type"] == "character":
+        if not hasattr(crud, "create_relationship"):
+            return None
+        # Map relationship_type to valid edge_type (fix P0: correct arg names)
+        from app.database.crud.relationships import VALID_EDGE_TYPES
+        edge_type = rel_type if rel_type in VALID_EDGE_TYPES else "other"
+        # 'other' may also not be in VALID_EDGE_TYPES — use 'friend' as safe default
+        if edge_type not in VALID_EDGE_TYPES:
+            edge_type = list(VALID_EDGE_TYPES)[0]
+        return crud.create_relationship(
+            session,
+            character_a_id=a["id"],
+            character_b_id=b["id"],
+            edge_type=edge_type,
+            description=description,
+        )
+
+    # --- Any other entity combination: use the generic EntityLink table ---
+    if not hasattr(crud, "create_entity_link"):
+        return None
+    return crud.create_entity_link(
         session,
-        entity_a_type=a["entity_type"], entity_a_id=a["id"],
-        entity_b_type=b["entity_type"], entity_b_id=b["id"],
-        relationship_type=item.get("relationship_type", "other"),
-        description=item.get("description", ""),
+        source_entity_type=a["entity_type"],
+        source_entity_id=a["id"],
+        target_entity_type=b["entity_type"],
+        target_entity_id=b["id"],
+        link_name=rel_type,
     )
 
 
