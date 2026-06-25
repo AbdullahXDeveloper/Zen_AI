@@ -17,9 +17,11 @@ import urllib.request
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QPushButton, QComboBox, QSizePolicy
+    QPushButton, QComboBox, QSizePolicy, QMessageBox, QInputDialog
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEnginePage
+from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtCore import Qt, QUrl, QThread, Signal
 
 from app.database.db_init import get_session
@@ -28,6 +30,7 @@ from app.database.models import (
     Universe, RootEntity, Character, Faction,
     Location, Artifact, Event, Story, RootEntityLink, CosmicNode
 )
+from app.graph.bridge import GraphBridge
 
 ACCENT     = "#00ADB5"
 VIS_CDN    = "https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js"
@@ -300,6 +303,48 @@ class CosmicDataWorker(QThread):
 def _build_cosmic_html(vis_js: str, data: dict) -> str:
     nodes_json = json.dumps(data["nodes"], ensure_ascii=False, indent=2)
     edges_json = json.dumps(data["edges"], ensure_ascii=False, indent=2)
+    
+    js_injection = """
+    <script>
+      function configureManipulation(network) {
+          network.setOptions({
+              manipulation: {
+                  enabled: true,
+                  addNode: false,
+                  addEdge: function(data, callback) {
+                      if (data.from === data.to) {
+                          var r = confirm("Do you want to connect the node to itself?");
+                          if (!r) return;
+                      }
+                      var label = prompt("Enter connection label (optional):", "Connected");
+                      if (label === null) return;
+                      
+                      console.log("ZEN_BRIDGE:ADD_EDGE:" + data.from + ":" + data.to + ":" + label);
+                      
+                      data.label = label;
+                      callback(data);
+                  },
+                  deleteEdge: function(data, callback) {
+                      var edgeId = data.edges[0];
+                      var edge = network.body.data.edges.get(edgeId);
+                      if (edge) {
+                          console.log("ZEN_BRIDGE:DEL_EDGE:" + edge.from + ":" + edge.to + ":");
+                      }
+                      callback(data);
+                  },
+                  deleteNode: false
+              }
+          });
+      }
+      
+      // Hook manipulation setup
+      setTimeout(function() {
+          if (typeof network !== "undefined") {
+              configureManipulation(network);
+          }
+      }, 500);
+    </script>
+    """
 
     return f"""<!DOCTYPE html>
 <html>
@@ -494,10 +539,41 @@ function closeInfo() {{
   document.getElementById('info-panel').style.display = 'none';
 }}
 </script>
+{js_injection}
 </body>
 </html>
 """
 
+
+class CustomWebEnginePage(QWebEnginePage):
+    def __init__(self, profile, parent=None):
+        super().__init__(profile, parent)
+        self.bridge = None
+
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        if message.startswith("ZEN_BRIDGE:"):
+            parts = message.split(":", 4)
+            if len(parts) >= 4:
+                _, cmd, from_id, to_id = parts[0], parts[1], parts[2], parts[3]
+                label = parts[4] if len(parts) > 4 else ""
+                
+                if self.bridge:
+                    if cmd == "ADD_EDGE":
+                        self.bridge.add_edge(from_id, to_id, label)
+                    elif cmd == "DEL_EDGE":
+                        self.bridge.delete_edge_by_nodes(from_id, to_id)
+        super().javaScriptConsoleMessage(level, message, lineNumber, sourceID)
+
+    def javaScriptAlert(self, securityOrigin, msg):
+        QMessageBox.information(self.view(), "Alert", msg)
+
+    def javaScriptConfirm(self, securityOrigin, msg):
+        res = QMessageBox.question(self.view(), "Confirm", msg, QMessageBox.Yes | QMessageBox.No)
+        return res == QMessageBox.Yes
+
+    def javaScriptPrompt(self, securityOrigin, msg, defaultValue):
+        text, ok = QInputDialog.getText(self.view(), "Prompt", msg, text=defaultValue)
+        return (True, text) if ok else (False, "")
 
 # ─── Main Cosmic View Widget ─────────────────────────────
 class CosmicViewWidget(QWidget):
@@ -562,8 +638,15 @@ class CosmicViewWidget(QWidget):
 
         # ── WebEngine ──
         self._web = QWebEngineView()
+        self.page = CustomWebEnginePage(self._web.page().profile(), self._web)
+        self._web.setPage(self.page)
         self._web.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._web.setStyleSheet("background: #050505;")
+        
+        # Configure Bridge
+        self.bridge = GraphBridge()
+        self.page.bridge = self.bridge
+        
         self._show_placeholder()
         root.addWidget(self._web)
 

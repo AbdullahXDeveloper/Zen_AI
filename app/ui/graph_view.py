@@ -8,9 +8,11 @@ import os
 import tempfile
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QComboBox, QFrame, QSizePolicy, QSpinBox
+    QLabel, QComboBox, QFrame, QSizePolicy, QSpinBox, QMessageBox, QInputDialog
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEnginePage
+from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtCore import Qt, QUrl, QThread, Signal
 
 from app.database.db_init import get_session
@@ -22,6 +24,7 @@ from app.graph.engine import (
     export_graph_to_html
 )
 from app.database.models import Universe, Character, RootEntity
+from app.graph.bridge import GraphBridge
 
 
 # ─────────────────────────────────────────────
@@ -64,6 +67,36 @@ class GraphWorker(QThread):
         finally:
             if 'session' in locals() and session: session.close()
 
+
+class CustomWebEnginePage(QWebEnginePage):
+    def __init__(self, profile, parent=None):
+        super().__init__(profile, parent)
+        self.bridge = None # Will be set by GraphViewWidget
+
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        if message.startswith("ZEN_BRIDGE:"):
+            parts = message.split(":", 4)
+            if len(parts) >= 4:
+                _, cmd, from_id, to_id = parts[0], parts[1], parts[2], parts[3]
+                label = parts[4] if len(parts) > 4 else ""
+                
+                if self.bridge:
+                    if cmd == "ADD_EDGE":
+                        self.bridge.add_edge(from_id, to_id, label)
+                    elif cmd == "DEL_EDGE":
+                        self.bridge.delete_edge_by_nodes(from_id, to_id)
+        super().javaScriptConsoleMessage(level, message, lineNumber, sourceID)
+
+    def javaScriptAlert(self, securityOrigin, msg):
+        QMessageBox.information(self.view(), "Alert", msg)
+
+    def javaScriptConfirm(self, securityOrigin, msg):
+        res = QMessageBox.question(self.view(), "Confirm", msg, QMessageBox.Yes | QMessageBox.No)
+        return res == QMessageBox.Yes
+
+    def javaScriptPrompt(self, securityOrigin, msg, defaultValue):
+        text, ok = QInputDialog.getText(self.view(), "Prompt", msg, text=defaultValue)
+        return (True, text) if ok else (False, "")
 
 # ─────────────────────────────────────────────
 # Main Graph View Widget
@@ -141,10 +174,17 @@ class GraphViewWidget(QWidget):
 
         # ── WebEngine View ──
         self.web_view = QWebEngineView()
+        self.page = CustomWebEnginePage(self.web_view.page().profile(), self.web_view)
+        self.web_view.setPage(self.page)
         self.web_view.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.web_view.setStyleSheet("background: #1E1E1E;")
+        
+        # Configure Bridge
+        self.bridge = GraphBridge()
+        self.page.bridge = self.bridge
+        
         self._show_placeholder()
 
         root_layout.addWidget(control_bar)

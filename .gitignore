@@ -64,7 +64,6 @@ data/uploads/
 data/exports/
 
 # ── Logs ──
-# ── Logs ──
 *.log
 logs/
 Logs/
@@ -88,25 +87,28 @@ desktop.ini
 .project
 .pydevproject
 
-# ── Testing ──
+# ── Testing & Scratch Files ──
 .pytest_cache/
 .coverage
 htmlcov/
-test_check.py
-test_search.py
-test_module_5.py
-test ingestion.py
-test_wiki.py
-test_timeline.py
-test graph.py
-test_ai.py
-test_claude_provider.py
+test*.py
+*test*.py
+scratch*.py
+add_dummy_connections.py
+import_archive.py
+make_nullable.py
+migration_all_entities.py
+seed_dummy_data.py
+test*.html
+*test.html
+entity_dashboard.html
+bulk_data.json
 
 # ── Jupyter ──
 .ipynb_checkpoints/
 *.ipynb
 
-# ── PyVis HTML output (generated, not source) ──
+# ── HTML output (generated, not source) ──
 *.html
 !app/ui/**/*.html
 
@@ -117,9 +119,11 @@ test_claude_provider.py
 *.svg
 !docs/**/*.png
 !docs/**/*.svg
+!Assests/**/*.png
+!Assests/**/*.jpg
+!Assests/**/*.svg
 
 # ── Sentence Transformers model cache ──
-# (downloaded automatically, no need to commit)
 sentence_transformers/
 models/
 .cache/
@@ -130,5 +134,3 @@ temp/
 *.tmp
 *.bak
 *.orig
-
-config/.env

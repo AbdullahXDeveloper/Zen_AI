@@ -197,6 +197,9 @@ def export_graph_to_html(nx_graph, output_path):
     # Configure Physics / Layout for more spaced-out nodes
     net.force_atlas_2based(spring_length=250, overlap=0.5, damping=0.09)
     
+    # We will inject manipulation via string replacement in the final HTML
+    # so we don't set manipulation options directly on the net object here.
+
     # Optional: Customize colors based on groups
     group_colors = {
         "character": "#3498db", "character_main": "#e74c3c", 
@@ -212,6 +215,59 @@ def export_graph_to_html(nx_graph, output_path):
             node_data['color'] = group_colors[group]
             
     net.from_nx(nx_graph)
-    net.show_buttons(filter_=['physics'])
+    net.show_buttons(filter_=['physics'])    
+    # Export initial HTML
     net.save_graph(output_path)
+    
+    # Inject QWebChannel and manipulation script
+    with open(output_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+
+    js_injection = """
+    <script>
+      function configureManipulation(network) {
+          network.setOptions({
+              manipulation: {
+                  enabled: true,
+                  addNode: false, // Adding nodes visually is disabled
+                  addEdge: function(data, callback) {
+                      if (data.from === data.to) {
+                          var r = confirm("Do you want to connect the node to itself?");
+                          if (!r) return;
+                      }
+                      var label = prompt("Enter connection label (optional):", "Connected");
+                      if (label === null) return; // Cancelled
+                      
+                      console.log("ZEN_BRIDGE:ADD_EDGE:" + data.from + ":" + data.to + ":" + label);
+                      
+                      data.label = label;
+                      callback(data);
+                  },
+                  deleteEdge: function(data, callback) {
+                      var edgeId = data.edges[0];
+                      var edge = network.body.data.edges.get(edgeId);
+                      if (edge) {
+                          console.log("ZEN_BRIDGE:DEL_EDGE:" + edge.from + ":" + edge.to + ":");
+                      }
+                      callback(data);
+                  },
+                  deleteNode: false // Deleting nodes visually is disabled
+              }
+          });
+      }
+      
+      // Hook into the draw event to ensure the network is initialized
+      setTimeout(function() {
+          if (typeof network !== "undefined") {
+              configureManipulation(network);
+          }
+      }, 500);
+    </script>
+    """
+    
+    html_content = html_content.replace("</body>", js_injection + "\n</body>")
+    
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
     return output_path
