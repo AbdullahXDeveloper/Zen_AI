@@ -161,6 +161,15 @@ class GraphViewWidget(QWidget):
         self.generate_btn.setStyleSheet(_btn_style())
         self.generate_btn.clicked.connect(self._generate_graph)
 
+        # Edit Mode Toggle
+        self.edit_mode_btn = QPushButton("✎  Enable Edit")
+        self.edit_mode_btn.setFixedHeight(40)
+        self.edit_mode_btn.setStyleSheet(_btn_style())
+        self.edit_mode_btn.setCheckable(True)
+        self.edit_mode_btn.toggled.connect(self._toggle_edit_mode)
+        self.edit_mode_btn.setEnabled(False) # Enable only after graph loads
+
+
         # Status label
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: #00ADB5; font-size: 13px; font-weight: 700;")
@@ -170,6 +179,7 @@ class GraphViewWidget(QWidget):
         bar_layout.addWidget(self.entity_frame)
         bar_layout.addStretch()
         bar_layout.addWidget(self.status_label)
+        bar_layout.addWidget(self.edit_mode_btn)
         bar_layout.addWidget(self.generate_btn)
 
         # ── WebEngine View ──
@@ -194,6 +204,19 @@ class GraphViewWidget(QWidget):
         self._on_type_changed(0)
 
     # ── Helpers ──────────────────────────────
+
+
+    def _toggle_edit_mode(self, checked):
+        if checked:
+            self.edit_mode_btn.setText("✓  Disable Edit")
+            self.edit_mode_btn.setStyleSheet(_btn_style().replace("#00ADB5", "#E74C3C")) # Different color when active
+            js = "if (typeof network !== 'undefined') { network.setOptions({ manipulation: { enabled: true } }); }"
+            self.web_view.page().runJavaScript(js)
+        else:
+            self.edit_mode_btn.setText("✎  Enable Edit")
+            self.edit_mode_btn.setStyleSheet(_btn_style())
+            js = "if (typeof network !== 'undefined') { network.setOptions({ manipulation: { enabled: false } }); }"
+            self.web_view.page().runJavaScript(js)
 
     def _show_placeholder(self):
         placeholder_html = """
@@ -289,6 +312,7 @@ class GraphViewWidget(QWidget):
                 return
 
         self.generate_btn.setEnabled(False)
+        self.edit_mode_btn.setEnabled(False)
         self.status_label.setText("Building...")
         self._show_loading()
 
@@ -362,10 +386,14 @@ class GraphViewWidget(QWidget):
 
         self.status_label.setText("✓ Graph ready")
         self.generate_btn.setEnabled(True)
+        self.edit_mode_btn.setEnabled(True)
+        self.edit_mode_btn.setChecked(False)
 
     def _on_graph_error(self, msg):
         self.status_label.setText(f"Error: {msg}")
         self.generate_btn.setEnabled(True)
+        self.edit_mode_btn.setEnabled(True)
+        self.edit_mode_btn.setChecked(False)
         error_html = f"""
         <html><body style="background:#1E1E1E; color:#e74c3c; 
             display:flex; align-items:center; justify-content:center; 

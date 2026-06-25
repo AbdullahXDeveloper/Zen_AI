@@ -273,7 +273,7 @@ def export_graph_to_html(nx_graph, output_path):
       function configureManipulation(network) {
           network.setOptions({
               manipulation: {
-                  enabled: true,
+                  enabled: false,
                   addNode: false, // Adding nodes visually is disabled
                   addEdge: function(data, callback) {
                       if (data.from === data.to) {
