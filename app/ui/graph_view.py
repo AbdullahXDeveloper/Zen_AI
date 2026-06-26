@@ -8,7 +8,8 @@ import os
 import tempfile
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QComboBox, QFrame, QSizePolicy, QSpinBox, QMessageBox, QInputDialog
+    QLabel, QComboBox, QFrame, QSizePolicy, QSpinBox, QMessageBox, QInputDialog,
+    QSplitter, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage
@@ -31,7 +32,7 @@ from app.graph.bridge import GraphBridge
 # Background thread: graph build karo, freeze mat karo UI
 # ─────────────────────────────────────────────
 class GraphWorker(QThread):
-    graph_ready = Signal(str)   # HTML file path emit karta hai
+    graph_ready = Signal(str, object)   # HTML file path emit karta hai
     error = Signal(str)
 
     def __init__(self, graph_type, entity_id=None):
@@ -59,7 +60,7 @@ class GraphWorker(QThread):
                 suffix=".html", delete=False, prefix="zenai_graph_"
             )
             export_graph_to_html(G, tmp.name)
-            self.graph_ready.emit(tmp.name)
+            self.graph_ready.emit(tmp.name, G)
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -182,6 +183,9 @@ class GraphViewWidget(QWidget):
         bar_layout.addWidget(self.edit_mode_btn)
         bar_layout.addWidget(self.generate_btn)
 
+        # --- Root Layout Splitter ---
+        self.splitter = QSplitter(Qt.Vertical)
+        
         # ── WebEngine View ──
         self.web_view = QWebEngineView()
         self.page = CustomWebEnginePage(self.web_view.page().profile(), self.web_view)
@@ -196,9 +200,58 @@ class GraphViewWidget(QWidget):
         self.page.bridge = self.bridge
         
         self._show_placeholder()
+        
+        self.splitter.addWidget(self.web_view)
 
+        # ── Data Table Editor Panel ──
+        self.editor_panel = QWidget()
+        self.editor_panel.setStyleSheet("background: #111111; border-top: 1px solid #333;")
+        ed_layout = QVBoxLayout(self.editor_panel)
+        ed_layout.setContentsMargins(10, 10, 10, 10)
+        
+        ed_title = QLabel("Manual Knowledge Graph Editor")
+        ed_title.setStyleSheet("color: #00ADB5; font-size: 14px; font-weight: bold; border: none;")
+        ed_layout.addWidget(ed_title)
+        
+        # Add Edge Form
+        add_form = QHBoxLayout()
+        self.src_combo = QComboBox()
+        self.src_combo.setMinimumWidth(150)
+        self.src_combo.setStyleSheet(_combo_style())
+        self.tgt_combo = QComboBox()
+        self.tgt_combo.setMinimumWidth(150)
+        self.tgt_combo.setStyleSheet(_combo_style())
+        self.lbl_input = QLineEdit()
+        self.lbl_input.setPlaceholderText("Connection Label (e.g. Member, Friend)")
+        self.lbl_input.setStyleSheet("background: #1E1E1E; color: #FFF; border: 1px solid #333; padding: 4px; border-radius: 4px;")
+        self.add_edge_btn = QPushButton("Add Connection")
+        self.add_edge_btn.setStyleSheet(_btn_style())
+        self.add_edge_btn.clicked.connect(self._on_manual_add_edge)
+        
+        add_form.addWidget(QLabel("Source:", styleSheet="color:#CCC; border:none;"))
+        add_form.addWidget(self.src_combo)
+        add_form.addWidget(QLabel("Target:", styleSheet="color:#CCC; border:none;"))
+        add_form.addWidget(self.tgt_combo)
+        add_form.addWidget(QLabel("Label:", styleSheet="color:#CCC; border:none;"))
+        add_form.addWidget(self.lbl_input)
+        add_form.addWidget(self.add_edge_btn)
+        
+        ed_layout.addLayout(add_form)
+        
+        # Table Widget
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["Source ID", "Target ID", "Label", "Action"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setStyleSheet("""
+            QTableWidget { background: #1A1A1A; color: #DDD; border: 1px solid #333; }
+            QHeaderView::section { background: #222; color: #00ADB5; font-weight: bold; padding: 4px; border: 1px solid #333; }
+        """)
+        ed_layout.addWidget(self.table)
+        
+        self.splitter.addWidget(self.editor_panel)
+        
         root_layout.addWidget(control_bar)
-        root_layout.addWidget(self.web_view)
+        root_layout.addWidget(self.splitter)
 
         # Init entity combo for default type
         self._on_type_changed(0)
@@ -313,6 +366,8 @@ class GraphViewWidget(QWidget):
 
         self.generate_btn.setEnabled(False)
         self.edit_mode_btn.setEnabled(False)
+        self.table.setEnabled(False)
+        self.add_edge_btn.setEnabled(False)
         self.status_label.setText("Building...")
         self._show_loading()
 
@@ -322,7 +377,7 @@ class GraphViewWidget(QWidget):
         self._worker.start()
 
 
-    def _on_graph_ready(self, html_path):
+    def _on_graph_ready(self, html_path, nx_graph=None):
         import os, re, tempfile
 
         vis_cache = os.path.join("data", "cache", "vis-network.min.js")
@@ -388,12 +443,19 @@ class GraphViewWidget(QWidget):
         self.generate_btn.setEnabled(True)
         self.edit_mode_btn.setEnabled(True)
         self.edit_mode_btn.setChecked(False)
+        self.table.setEnabled(True)
+        self.add_edge_btn.setEnabled(True)
+        
+        if nx_graph is not None:
+            self._populate_table_and_combos(nx_graph)
 
     def _on_graph_error(self, msg):
         self.status_label.setText(f"Error: {msg}")
         self.generate_btn.setEnabled(True)
         self.edit_mode_btn.setEnabled(True)
         self.edit_mode_btn.setChecked(False)
+        self.table.setEnabled(True)
+        self.add_edge_btn.setEnabled(True)
         error_html = f"""
         <html><body style="background:#1E1E1E; color:#e74c3c; 
             display:flex; align-items:center; justify-content:center; 
@@ -405,6 +467,60 @@ class GraphViewWidget(QWidget):
         </body></html>
         """
         self.web_view.setHtml(error_html)
+
+
+    def _populate_table_and_combos(self, nx_graph):
+        self.table.setRowCount(0)
+        self.src_combo.clear()
+        self.tgt_combo.clear()
+        
+        # Populate combos with sorted nodes
+        nodes = []
+        for n_id, n_data in nx_graph.nodes(data=True):
+            lbl = n_data.get('label', n_id)
+            nodes.append((n_id, lbl))
+        nodes.sort(key=lambda x: x[1])
+        
+        for n_id, lbl in nodes:
+            display_text = f"{lbl} ({n_id})"
+            self.src_combo.addItem(display_text, n_id)
+            self.tgt_combo.addItem(display_text, n_id)
+            
+        # Populate table
+        edges = nx_graph.edges(data=True)
+        self.table.setRowCount(len(edges))
+        for row, (u, v, data) in enumerate(edges):
+            u_lbl = nx_graph.nodes[u].get('label', u)
+            v_lbl = nx_graph.nodes[v].get('label', v)
+            edge_lbl = data.get('label', '')
+            
+            self.table.setItem(row, 0, QTableWidgetItem(f"{u_lbl} [{u}]"))
+            self.table.setItem(row, 1, QTableWidgetItem(f"{v_lbl} [{v}]"))
+            self.table.setItem(row, 2, QTableWidgetItem(edge_lbl))
+            
+            del_btn = QPushButton("Delete")
+            del_btn.setStyleSheet("background: #E74C3C; color: white; border: none; padding: 4px; border-radius: 3px;")
+            # Capture u, v in lambda
+            del_btn.clicked.connect(lambda _, from_id=u, to_id=v: self._on_manual_del_edge(from_id, to_id))
+            self.table.setCellWidget(row, 3, del_btn)
+
+    def _on_manual_add_edge(self):
+        f_id = self.src_combo.currentData()
+        t_id = self.tgt_combo.currentData()
+        lbl = self.lbl_input.text().strip()
+        
+        if not f_id or not t_id:
+            return
+            
+        self.bridge.add_edge(f_id, t_id, lbl)
+        self.lbl_input.clear()
+        # Refresh graph
+        self._generate_graph()
+
+    def _on_manual_del_edge(self, from_id, to_id):
+        self.bridge.delete_edge_by_nodes(from_id, to_id)
+        # Refresh graph
+        self._generate_graph()
 
 
 # ─────────────────────────────────────────────
