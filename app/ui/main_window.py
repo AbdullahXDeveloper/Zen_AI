@@ -38,7 +38,7 @@ from app.ui.simulation_view import SimulationViewWidget  # ← Module 12: World 
 class ZenMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Zen AI — Zendrix Multiverse OS")
+        self.setWindowTitle("Zen_OS v4 — Zendrix Multiverse OS")
         self.resize(1280, 800)
         self.setStyleSheet("background-color: #0D0D0D; color: #FFFFFF;")
 

@@ -1,13 +1,30 @@
 import sys
 from pathlib import Path
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QFont, QIcon
+import traceback
+
+def global_exception_hook(exctype, value, tb):
+    """Catch unhandled exceptions and show them in a GUI dialog."""
+    err_msg = "".join(traceback.format_exception(exctype, value, tb))
+    print(f"[CRITICAL ERROR]\n{err_msg}")
+    
+    msg_box = QMessageBox()
+    msg_box.setIcon(QMessageBox.Critical)
+    msg_box.setWindowTitle("Zen_OS Critical Error")
+    msg_box.setText("An unexpected error occurred.")
+    msg_box.setInformativeText(str(value))
+    msg_box.setDetailedText(err_msg)
+    msg_box.exec()
+
+sys.excepthook = global_exception_hook
+
 from app.database.db_init import init_db, get_session
 from app.search.indexer import load_or_rebuild
 from app.ui.main_window import ZenMainWindow
 
 def main():
-    print("[Zen AI] Booting up Operating System...")
+    print("[Zen_OS v4] Booting up Operating System...")
     init_db(seed_root_entities=False)
 
     # Load (or build) the FAISS vector index so RAG / semantic search works.
@@ -17,7 +34,7 @@ def main():
     try:
         load_or_rebuild(session)
     except Exception as e:
-        print(f"[Zen AI] Warning: could not load search index: {e}")
+        print(f"[Zen_OS v4] Warning: could not load search index: {e}")
     finally:
         session.close()
 
@@ -47,7 +64,7 @@ def main():
 
     window.show()
 
-    print("[Zen AI] System Ready.")
+    print("[Zen_OS v4] System Ready.")
     sys.exit(app.exec())
 
 if __name__ == "__main__":

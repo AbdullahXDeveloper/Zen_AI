@@ -30,7 +30,7 @@ class Universe(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("uni"))
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     canon_status = Column(String(50), default="canon")  # canon/non_canon/alt_timeline/experimental
     importance_score = Column(Integer, default=50)
@@ -71,7 +71,7 @@ class CosmicNode(Base):
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("csm"))
     universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=False)
     parent_id = Column(Integer, ForeignKey("cosmic_nodes.id"), index=True, nullable=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, index=True)
     node_type = Column(String(50), default="custom")  # black_hole/galaxy/solar_system/planet/star/nebula/custom
     description = Column(Text)
     importance_score = Column(Integer, default=50)
@@ -115,7 +115,7 @@ class RootEntity(Base):
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("root"))
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, index=True)
     type = Column(String(100))
     description = Column(Text)
     notes = Column(Text)
@@ -146,7 +146,7 @@ class Character(Base):
     id = Column(Integer, primary_key=True)
     uuid = Column(String(50), unique=True, nullable=False, default=gen_uuid("chr"))
     universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, index=True)
     titles = Column(Text)
     aliases = Column(Text)
     species = Column(String(255))
@@ -208,7 +208,7 @@ class Faction(Base):
     universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
     faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
     root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, index=True)
     founder_id = Column(Integer, ForeignKey("characters.id"), index=True, nullable=True)
     ideology = Column(Text)
     description = Column(Text)
@@ -233,7 +233,7 @@ class Location(Base):
     universe_id = Column(Integer, ForeignKey("universes.id"), index=True, nullable=True)
     faction_id = Column(Integer, ForeignKey("factions.id"), index=True, nullable=True)
     root_entity_id = Column(Integer, ForeignKey("root_entities.id"), index=True, nullable=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     type = Column(String(100))
     canon_status = Column(String(50), default="canon")
