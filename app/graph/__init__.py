@@ -3,7 +3,8 @@ from .engine import (
     build_universe_graph,
     build_character_graph,
     build_root_entity_graph,
-    export_graph_to_html
+    export_graph_to_html,
+    GROUP_STYLES,
 )
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     "build_universe_graph",
     "build_character_graph",
     "build_root_entity_graph",
-    "export_graph_to_html"
+    "export_graph_to_html",
+    "GROUP_STYLES",
 ]
